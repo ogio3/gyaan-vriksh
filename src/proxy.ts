@@ -6,7 +6,7 @@ import { updateSession } from '@/lib/supabase/middleware';
 
 const intlMiddleware = createIntlMiddleware(routing);
 
-const PUBLIC_PATHS = ['/', '/sign-in', '/sign-up', '/join', '/demo', '/privacy'];
+const PUBLIC_PATHS = ['/', '/sign-in', '/sign-up', '/join', '/demo', '/privacy', '/dashboard', '/parent', '/explore', '/history'];
 const AUTH_COOKIE = 'site-auth';
 
 function stripLocale(pathname: string): string {

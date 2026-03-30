@@ -1,17 +1,33 @@
 import { Suspense } from 'react';
-import { requireAuth, getProfile } from '@/lib/auth';
+import { getProfile } from '@/lib/auth';
 import { AppShell } from '@/components/layout/AppShell';
 import type { UserRole } from '@/types/database';
 
 async function AuthGate({ children }: { children: React.ReactNode }) {
-  await requireAuth();
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  // Demo mode (no Supabase): show as teacher for full dashboard access
+  if (!supabaseUrl) {
+    return (
+      <AppShell role="teacher" displayName="Demo">
+        {children}
+      </AppShell>
+    );
+  }
+
   const profile = await getProfile();
 
-  const role = (profile?.role ?? 'student') as UserRole;
-  const displayName = profile?.display_name ?? 'User';
+  if (!profile) {
+    // Not authenticated but Supabase is configured — show as guest
+    return (
+      <AppShell role="teacher" displayName="Guest">
+        {children}
+      </AppShell>
+    );
+  }
 
   return (
-    <AppShell role={role} displayName={displayName}>
+    <AppShell role={(profile.role ?? 'student') as UserRole} displayName={profile.display_name ?? 'User'}>
       {children}
     </AppShell>
   );
