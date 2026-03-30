@@ -16,6 +16,8 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   teacher: [
     { href: '/dashboard', label: 'Dashboard' },
+    { href: '/dashboard/engineers', label: 'Engineers' },
+    { href: '/dashboard/philosophy', label: 'Why' },
     { href: '/explore', label: 'Try Explore' },
   ],
   parent: [{ href: '/parent', label: 'My Children' }],
