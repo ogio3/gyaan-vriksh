@@ -4,7 +4,7 @@
 export type UserRole = 'student' | 'teacher' | 'parent' | 'admin';
 export type AgeBracket = 'under_10' | '10_12' | '13_15' | '16_17' | 'adult';
 export type ExplorationStatus = 'active' | 'completed' | 'abandoned';
-export type BranchType = 'career' | 'deeper_topic' | 'connection' | 'application' | 'question';
+export type BranchType = 'career' | 'discovery' | 'connection' | 'innovation' | 'mystery' | 'history';
 export type BloomLevel = 'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';
 export type ContentReportType = 'age_inappropriate' | 'incorrect' | 'uncomfortable' | 'other';
 export type ReportPriority = 'high' | 'medium' | 'low';

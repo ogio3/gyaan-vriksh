@@ -36,11 +36,11 @@ const SEEDS: Record<string, string> = {
 const GOLD = '#D4A017';
 
 function extractBranches(text: string) {
-  const branches: Array<{ branchType: string; label: string; summary: string; bloomLevel: string }> = [];
-  const pattern = /\{\s*"branchType"\s*:\s*"([^"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*,\s*"summary"\s*:\s*"([^"]+)"\s*,\s*"bloomLevel"\s*:\s*"([^"]+)"\s*\}/g;
+  const branches: Array<{ branchType: string; label: string; summary: string; bloomLevel: string; rarity: string }> = [];
+  const pattern = /\{\s*"branchType"\s*:\s*"([^"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*,\s*"summary"\s*:\s*"([^"]+)"\s*,\s*"bloomLevel"\s*:\s*"([^"]+)"\s*,\s*"rarity"\s*:\s*"([^"]+)"\s*\}/g;
   let match;
   while ((match = pattern.exec(text)) !== null) {
-    branches.push({ branchType: match[1], label: match[2], summary: match[3], bloomLevel: match[4] });
+    branches.push({ branchType: match[1], label: match[2], summary: match[3], bloomLevel: match[4], rarity: match[5] });
   }
   return branches;
 }
@@ -171,6 +171,7 @@ export default function HomePage() {
               branchType: b.branchType as TreeNode['branchType'],
               bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
               summary: b.summary,
+              rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
             })),
           });
         }

@@ -23,11 +23,12 @@ interface BranchData {
   label: string;
   summary: string;
   bloomLevel: string;
+  rarity: string;
 }
 
 function extractBranches(text: string): BranchData[] {
   const branches: BranchData[] = [];
-  const pattern = /\{\s*"branchType"\s*:\s*"([^"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*,\s*"summary"\s*:\s*"([^"]+)"\s*,\s*"bloomLevel"\s*:\s*"([^"]+)"\s*\}/g;
+  const pattern = /\{\s*"branchType"\s*:\s*"([^"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*,\s*"summary"\s*:\s*"([^"]+)"\s*,\s*"bloomLevel"\s*:\s*"([^"]+)"\s*,\s*"rarity"\s*:\s*"([^"]+)"\s*\}/g;
   let match;
   while ((match = pattern.exec(text)) !== null) {
     branches.push({
@@ -35,6 +36,7 @@ function extractBranches(text: string): BranchData[] {
       label: match[2],
       summary: match[3],
       bloomLevel: match[4],
+      rarity: match[5],
     });
   }
   return branches;
@@ -170,6 +172,7 @@ function DemoPage() {
             branchType: b.branchType as TreeNode['branchType'],
             bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
             summary: b.summary,
+            rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
           }));
           setTree({ ...rootNode, children });
         }
@@ -185,6 +188,7 @@ function DemoPage() {
           branchType: b.branchType as TreeNode['branchType'],
           bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
           summary: b.summary,
+          rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
         })),
       });
       setExpandingId(null);
@@ -252,6 +256,7 @@ function DemoPage() {
             branchType: b.branchType as TreeNode['branchType'],
             bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
             summary: b.summary,
+            rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
           }));
           setTree((prev) => prev ? addChildrenToNode(
             removeChildrenFromNode(prev, node.id),

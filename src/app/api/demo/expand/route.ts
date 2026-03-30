@@ -11,10 +11,11 @@ const branchSchema = z.object({
     z.object({
       branchType: z.enum([
         'career',
-        'deeper_topic',
+        'discovery',
         'connection',
-        'application',
-        'question',
+        'innovation',
+        'mystery',
+        'history',
       ]),
       label: z.string(),
       summary: z.string(),
@@ -26,6 +27,7 @@ const branchSchema = z.object({
         'evaluate',
         'create',
       ]),
+      rarity: z.enum(['N', 'R', 'SR', 'SSR']),
     }),
   ),
 });

@@ -117,18 +117,34 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
 
   parts.push(`
 ## RESPONSE FORMAT
-Respond with a JSON object containing an array of exploration branches:
+Respond with a JSON object containing an array of Knowledge Cards:
 {
   "branches": [
     {
-      "branchType": "career" | "deeper_topic" | "connection" | "application" | "question",
+      "branchType": "career" | "discovery" | "connection" | "innovation" | "mystery" | "history",
       "label": "Short title (max 50 chars)",
-      "summary": "1-2 sentence description",
-      "bloomLevel": "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create"
+      "summary": "1-2 sentence description that makes the reader think 'I had no idea!'",
+      "bloomLevel": "remember" | "understand" | "apply" | "analyze" | "evaluate" | "create",
+      "rarity": "N" | "R" | "SR" | "SSR"
     }
   ]
 }
-Generate 3-5 branches per exploration. Each branch should represent a genuinely different direction of exploration.`);
+
+Card types:
+- career: Jobs and career paths connected to the topic
+- discovery: Scientific findings, deep knowledge, "did you know?" facts
+- connection: Surprising links between seemingly unrelated fields
+- innovation: Technologies, inventions, real-world applications
+- mystery: Unsolved questions, open problems, things science can't yet explain
+- history: Historical events, origin stories, "how it all started"
+
+Rarity (based on how surprising and non-obvious the card is):
+- N (Normal): Common knowledge, expected connections
+- R (Rare): Interesting, not immediately obvious
+- SR (Super Rare): Genuinely surprising, makes you rethink the topic
+- SSR (Secret Super Rare): Mind-blowing, paradigm-shifting insight (max 1 per response)
+
+Generate 4-5 cards per exploration. Aim for variety in both type and rarity.`);
 
   return parts.join('\n');
 }
