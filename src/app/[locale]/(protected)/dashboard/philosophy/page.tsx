@@ -113,8 +113,14 @@ export default function PhilosophyPage() {
             will complain — because complaints are the blueprint for what
             to build next.
           </p>
+          <p>
+            And if you&apos;re already an engineer — if you see this
+            code and something resonates — this tree is open source.
+            Pull requests, issues, ideas: all welcome. Let&apos;s
+            grow it together.
+          </p>
           <p className="text-zinc-400 italic">
-            Send feedback to: hi [at] ogio.dev
+            hi [at] ogio.dev
           </p>
         </div>
       </section>
