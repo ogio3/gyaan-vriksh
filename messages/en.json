@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "Gyaan Vriksh",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "dashboard": "Dashboard",
+    "password": "Password",
+    "signingIn": "Signing in...",
+    "offline": "You are offline. Showing cached data.",
+    "dailyLimit": "Daily limit reached. Please try again tomorrow.",
+    "analyze": "Analyze",
+    "errorRequired": "Password is required.",
+    "errorInvalid": "Invalid password.",
+    "errorRateLimit": "Too many attempts. Please wait a minute."
+  }
+}

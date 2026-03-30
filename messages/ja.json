@@ -1,0 +1,16 @@
+{
+  "common": {
+    "appName": "ギャーン・ヴリクシュ",
+    "signIn": "サインイン",
+    "signOut": "サインアウト",
+    "dashboard": "ダッシュボード",
+    "password": "パスワード",
+    "signingIn": "サインイン中...",
+    "offline": "オフラインです。キャッシュされたデータを表示しています。",
+    "dailyLimit": "本日の上限に達しました。明日再度お試しください。",
+    "analyze": "分析",
+    "errorRequired": "パスワードは必須です。",
+    "errorInvalid": "パスワードが正しくありません。",
+    "errorRateLimit": "試行回数が多すぎます。1分間お待ちください。"
+  }
+}
