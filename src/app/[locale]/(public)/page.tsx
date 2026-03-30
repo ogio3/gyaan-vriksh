@@ -306,14 +306,9 @@ export default function HomePage() {
           <Link href="/privacy" className="hover:text-zinc-600 dark:hover:text-zinc-300">
             Privacy
           </Link>
-          <a
-            href="https://github.com/gyaan-vriksh/gyaan-vriksh"
-            className="hover:text-zinc-600 dark:hover:text-zinc-300"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub
-          </a>
+          <span className="hover:text-zinc-600 dark:hover:text-zinc-300 cursor-default" title="hi [at] ogio.dev">
+            Source
+          </span>
         </div>
       </div>
     </main>

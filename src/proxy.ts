@@ -145,7 +145,7 @@ ${showError ? '<p class="e">Incorrect password</p>' : ''}
   style="-webkit-text-security:disc">
 <button type="submit">Enter</button>
 </form>
-<p style="margin-top:24px"><a href="https://github.com/gyaan-vriksh/gyaan-vriksh" style="color:#3f3f46;font-size:11px;text-decoration:none" target="_blank" rel="noopener">curious how this was made?</a></p>
+<p style="margin-top:24px"><span style="color:#3f3f46;font-size:11px" title="hi [at] ogio.dev">curious how this was made?</span></p>
 </div>
 </body></html>`;
 }

@@ -10,6 +10,12 @@ Built for students aged 10-17. Compliant with COPPA 2025, UAE Federal Decree-Law
 
 The public deployment is a frictionless demo — one click to experience the core AHA moment. The full platform (classes, dashboard, parental controls, compliance) lives in this repository for schools to self-host.
 
+**This repository is private.** Education policy is decided by each country and community, and the potential impact of AI-driven free exploration on children must be carefully considered. We invite rather than broadcast.
+
+- **Educators and schools**: Contact hi [at] ogio.dev to request access
+- **Engineers who want to contribute**: Same address — we'll add you as a collaborator
+- **Direct download**: A ZIP of the source code is available upon request
+
 ## Live Demo
 
 The public URL is a **demo-only** experience. No sign-up. No login. One click.
@@ -76,7 +82,7 @@ A dry textbook paragraph transforms into a knowledge tree with career paths, dee
 To run just the demo locally (no database needed):
 
 ```bash
-git clone https://github.com/gyaan-vriksh/gyaan-vriksh.git
+# After receiving access (collaborator invite or ZIP download):
 cd gyaan-vriksh
 pnpm install
 echo "ANTHROPIC_API_KEY=your-key-here" > .env.local
@@ -98,8 +104,7 @@ For the complete platform with student/teacher/parent roles:
 ### Steps
 
 ```bash
-# 1. Clone and install
-git clone https://github.com/gyaan-vriksh/gyaan-vriksh.git
+# 1. Install (after receiving source code access)
 cd gyaan-vriksh
 pnpm install
 

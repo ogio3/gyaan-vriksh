@@ -115,9 +115,9 @@ export default function PhilosophyPage() {
           </p>
           <p>
             And if you&apos;re already an engineer — if you see this
-            code and something resonates — this tree is open source.
-            Pull requests, issues, ideas: all welcome. Let&apos;s
-            grow it together.
+            code and something resonates — reach out. This repository
+            is private to protect the children, but we welcome
+            collaborators. Let&apos;s grow this tree together.
           </p>
           <p className="text-zinc-400 italic">
             hi [at] ogio.dev
@@ -127,17 +127,13 @@ export default function PhilosophyPage() {
 
       <section className="space-y-2 text-xs text-zinc-500">
         <p>
-          This is open source software released under the MIT License.
-          Fork it. Change it. Make it yours.
+          This is MIT licensed software. The repository is private to
+          ensure responsible deployment, but source code access is
+          available to educators and engineers upon request.
         </p>
-        <a
-          href="https://github.com/gyaan-vriksh/gyaan-vriksh"
-          className="text-blue-500 hover:underline"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View source on GitHub
-        </a>
+        <p>
+          Request access: hi [at] ogio.dev
+        </p>
       </section>
     </div>
   );
