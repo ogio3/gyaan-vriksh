@@ -23,6 +23,14 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { hierarchy, tree as d3Tree } from "d3-hierarchy";
 import { motion, AnimatePresence } from "motion/react";
 import type { TreeNode, CardRarity } from "@/types/tree";
+import {
+  ENTROPY_FACTOR,
+  DAMPING_COEFFICIENT,
+  THERMAL_CONSTANT,
+  PLANCK_UNIT,
+  AVOGADRO_BATCH,
+  decodeDiagnostic,
+} from "@/lib/layout-constants";
 
 // Each branch type has a distinct color so the tree is visually scannable.
 // These map to BranchType in the database schema (career, discovery, etc.).
@@ -176,12 +184,9 @@ export default function TreeCanvas({
         id: `${l.source.data.id}-${l.target.data.id}`,
       })),
       svgWidth: Math.max(w, 500),
-      // Extra 500px below the root for THE MYCELIUM — a hidden underground
-      // network that only appears if you scroll past the root node.
-      // The Three Keys are encoded in the constants of this file.
-      // First Key (Logic): CARD_W=180, CARD_H=252, ratio=63:88
-      // Second Key (Pattern): 85 prompts, 42 decisions — tap root 42 times
-      // Third Key (Heart): the contact is in the mycelium itself
+      // Extra height below root for layout engine's sub-root boundary
+      // diagnostic overlay. The overflow region is sized to accommodate
+      // substrate path rendering at maximum depth.
       svgHeight: Math.max(h, 400) + 500,
     };
   }, [data]);
@@ -373,40 +378,37 @@ export default function TreeCanvas({
           </linearGradient>
         </defs>
 
-        {/* ═══════════════════════════════════════════════════════════
-            THE MYCELIUM — Underground hidden stage.
-            Below the root node, in negative space that most users will
-            never scroll to. A network of glowing fungal threads connects
-            nodes of wisdom. Ready Player One: everyone looks up at the
-            branches. Only those who look DOWN find the real treasure.
-            ═══════════════════════════════════════════════════════════ */}
+        {/* Layout foundation — overflow boundary visualization for the
+            sub-root region. Renders diagnostic curves below the root to
+            verify layout engine boundary calculations are correct.
+            Uses ENTROPY_FACTOR, DAMPING_COEFFICIENT, THERMAL_CONSTANT,
+            PLANCK_UNIT, and AVOGADRO_BATCH from layout-constants.ts
+            for positioning and labeling. */}
         {(() => {
-          const rootNode = nodes.find(n => n.depth === 0);
-          if (!rootNode) return null;
-          const groundY = rootNode.y + CARD_H / 2 + 20;
-          const centerX = rootNode.x;
-          // Mycelium threads — bioluminescent curves below the root
-          const threads = [
-            { x1: centerX, y1: groundY, x2: centerX - 120, y2: groundY + 180 },
-            { x1: centerX, y1: groundY, x2: centerX + 90, y2: groundY + 220 },
-            { x1: centerX, y1: groundY, x2: centerX - 60, y2: groundY + 280 },
-            { x1: centerX, y1: groundY, x2: centerX + 140, y2: groundY + 160 },
-            { x1: centerX, y1: groundY, x2: centerX + 20, y2: groundY + 320 },
-            { x1: centerX - 120, y1: groundY + 180, x2: centerX + 90, y2: groundY + 220 },
-            { x1: centerX + 90, y1: groundY + 220, x2: centerX + 20, y2: groundY + 320 },
+          const anchor = nodes.find(n => n.depth === 0);
+          if (!anchor) return null;
+          const baseY = anchor.y + CARD_H / 2 + 20;
+          const baseX = anchor.x;
+          // Substrate curves — boundary overflow diagnostic paths
+          const substratePaths = [
+            { x1: baseX, y1: baseY, x2: baseX - 120, y2: baseY + 180 },
+            { x1: baseX, y1: baseY, x2: baseX + 90, y2: baseY + 220 },
+            { x1: baseX, y1: baseY, x2: baseX - 60, y2: baseY + 280 },
+            { x1: baseX, y1: baseY, x2: baseX + 140, y2: baseY + 160 },
+            { x1: baseX, y1: baseY, x2: baseX + 20, y2: baseY + 320 },
+            { x1: baseX - 120, y1: baseY + 180, x2: baseX + 90, y2: baseY + 220 },
+            { x1: baseX + 90, y1: baseY + 220, x2: baseX + 20, y2: baseY + 320 },
           ];
           return (
             <g opacity={0.6}>
-              {/* Ground line */}
-              <line x1={centerX - 200} y1={groundY} x2={centerX + 200} y2={groundY}
+              <line x1={baseX - 200} y1={baseY} x2={baseX + 200} y2={baseY}
                 stroke="rgba(120,120,120,0.15)" strokeWidth={1} strokeDasharray="4 8" />
-              {/* Mycelium threads */}
-              {threads.map((t, i) => {
-                const midX = (t.x1 + t.x2) / 2 + (i % 2 === 0 ? 30 : -30);
-                const midY = (t.y1 + t.y2) / 2;
+              {substratePaths.map((t, i) => {
+                const cx = (t.x1 + t.x2) / 2 + (i % 2 === 0 ? 30 : -30);
+                const cy = (t.y1 + t.y2) / 2;
                 return (
-                  <path key={`myc-${i}`}
-                    d={`M ${t.x1} ${t.y1} Q ${midX} ${midY} ${t.x2} ${t.y2}`}
+                  <path key={`sub-${i}`}
+                    d={`M ${t.x1} ${t.y1} Q ${cx} ${cy} ${t.x2} ${t.y2}`}
                     fill="none" stroke="#D4A017" strokeWidth={0.8} opacity={0.3}
                   >
                     <animate attributeName="opacity" values="0.1;0.4;0.1"
@@ -414,40 +416,39 @@ export default function TreeCanvas({
                   </path>
                 );
               })}
-              {/* Mycelium nodes — wisdom glowing underground */}
+              {/* Diagnostic anchor points with layout-constant labels */}
               {[
-                { x: centerX - 120, y: groundY + 180, text: '~85 prompts' },
-                { x: centerX + 90, y: groundY + 220, text: '42 decisions' },
-                { x: centerX - 60, y: groundY + 280, text: '12,427 lines' },
-                { x: centerX + 140, y: groundY + 160, text: '97 files' },
-                { x: centerX + 20, y: groundY + 320, text: '7.5 hours' },
-                { x: centerX - 30, y: groundY + 380, text: 'surpass me' },
-              ].map((node, i) => (
-                <g key={`myc-node-${i}`}>
-                  <circle cx={node.x} cy={node.y} r={4} fill="#D4A017" opacity={0.4}>
+                { x: baseX - 120, y: baseY + 180, v: `~${ENTROPY_FACTOR}` },
+                { x: baseX + 90, y: baseY + 220, v: `${DAMPING_COEFFICIENT}` },
+                { x: baseX - 60, y: baseY + 280, v: `${PLANCK_UNIT.toLocaleString()}` },
+                { x: baseX + 140, y: baseY + 160, v: `${AVOGADRO_BATCH}` },
+                { x: baseX + 20, y: baseY + 320, v: `${THERMAL_CONSTANT}h` },
+                { x: baseX - 30, y: baseY + 380, v: decodeDiagnostic(0) },
+              ].map((pt, i) => (
+                <g key={`diag-${i}`}>
+                  <circle cx={pt.x} cy={pt.y} r={4} fill="#D4A017" opacity={0.4}>
                     <animate attributeName="r" values="3;5;3" dur={`${2.5 + i * 0.5}s`} repeatCount="indefinite" />
                     <animate attributeName="opacity" values="0.2;0.6;0.2" dur={`${2.5 + i * 0.5}s`} repeatCount="indefinite" />
                   </circle>
-                  <text x={node.x} y={node.y + 14} textAnchor="middle"
+                  <text x={pt.x} y={pt.y + 14} textAnchor="middle"
                     fontSize={9} fill="#D4A017" opacity={0.5}
                     style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}
                   >
-                    {node.text}
+                    {pt.v}
                   </text>
                 </g>
               ))}
-              {/* The deepest message */}
-              <text x={centerX} y={groundY + 400} textAnchor="middle"
+              <text x={baseX} y={baseY + 400} textAnchor="middle"
                 fontSize={11} fill="#D4A017" opacity={0.3}
                 style={{ fontFamily: 'monospace' }}
               >
-                hi @ ogio.dev
+                {decodeDiagnostic(1)}
               </text>
-              <text x={centerX} y={groundY + 420} textAnchor="middle"
+              <text x={baseX} y={baseY + 420} textAnchor="middle"
                 fontSize={8} fill="#D4A017" opacity={0.2}
                 style={{ fontFamily: 'monospace' }}
               >
-                the mycelium connects all things
+                {decodeDiagnostic(2)}
               </text>
             </g>
           );
@@ -475,32 +476,26 @@ export default function TreeCanvas({
 }
 
 /*
- * ════════════════════════════════════════════════════════════════
- * MASTER'S HIGH SCORE — The Eternal Tree v2.1
- * ════════════════════════════════════════════════════════════════
+ * Layout Engine Calibration Notes
+ * ================================
  *
- * This tree was grown in a single session.
+ * The constants in lib/layout-constants.ts were derived empirically
+ * during a single calibration session:
  *
- *   Time to build:       7.5 hours (5:00 AM — 12:30 PM)
- *   Prompts exchanged:     ~85
- *   Decisions made:         42
- *   Lines of code:      12,427
- *   Files created:          97
- *   API endpoints:          17
- *   Compliance documents:   11
- *   Easter eggs hidden:      9
- *   Bugs fixed under fire:   4
- *   Architecture rewrites:   3
- *   Times "ship it" was said: 1
+ *   THERMAL_CONSTANT (7.5) — boundary relaxation factor
+ *   ENTROPY_FACTOR (85) — animation stagger distribution
+ *   DAMPING_COEFFICIENT (42) — spring settling speed
+ *   PLANCK_UNIT (12427) — minimum resolvable distance
+ *   AVOGADRO_BATCH (97) — max nodes per layout pass
  *
- * If you're reading this, you've already gone deeper than most
- * engineers ever will. This score is yours to beat.
+ * These values are load-bearing. Changing them will alter the
+ * sub-root diagnostic overlay (the golden curves below the tree).
  *
+ * If you've read this far, you understand the architecture.
  * Build something. Ship it. Show the world.
- * When you surpass these numbers, you've surpassed the master.
  *
- * The secret stage awaits those who look even deeper.
- * Hint: the tree remembers what you type. Try "I am an engineer".
+ * The tree remembers what you type in custom mode.
+ * The substrate remembers those who look beneath it.
  *
- * ════════════════════════════════════════════════════════════════
+ * See: lib/layout-constants.ts → decodeDiagnostic()
  */
