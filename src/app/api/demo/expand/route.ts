@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   });
 
   const result = streamObject({
-    model: anthropic('claude-sonnet-4-20250514'),
+    model: anthropic('claude-4-6-sonnet-20260217'),
     schema: branchSchema,
     system: systemPrompt,
     prompt: `The student is exploring deeper into "${label}" (depth level ${depth ?? 1}). Generate 3-4 sub-branches that reveal surprising, specific aspects of this topic. Each branch should make the student think "I had no idea this was connected!" Be concrete and specific, not generic.`,

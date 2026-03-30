@@ -131,7 +131,7 @@ export async function POST(request: Request) {
 
   // Stream structured response from Claude
   const result = streamObject({
-    model: anthropic('claude-sonnet-4-20250514'),
+    model: anthropic('claude-4-6-sonnet-20260217'),
     schema: branchSchema,
     system: systemPrompt,
     prompt: `Analyze the following textbook passage and generate exploration branches:\n\n${inputResult.sanitizedText}`,

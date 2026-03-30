@@ -149,6 +149,7 @@ function DemoPage() {
   const [expandingId, setExpandingId] = useState<string | null>(null);
   const [customMode, setCustomMode] = useState(false);
   const [customPassage, setCustomPassage] = useState('');
+  const [hiddenStage, setHiddenStage] = useState(false);
   const [error, setError] = useState('');
   const [typedText, setTypedText] = useState('');
   const [showButton, setShowButton] = useState(false);
@@ -383,6 +384,57 @@ function DemoPage() {
     );
   }
 
+  // ── HIDDEN STAGE: unlocked by typing "I am an engineer" ──
+  if (hiddenStage) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center px-4" style={{ background: 'linear-gradient(180deg, #09090b 0%, #0a1628 100%)' }}>
+        <div className="flex w-full max-w-lg flex-col items-center gap-6 text-center">
+          <div style={{ animation: 'secret-glow 3s ease-in-out infinite' }}>
+            <h1 className="text-3xl font-bold" style={{ color: '#D4A017' }}>
+              You found the hidden stage.
+            </h1>
+          </div>
+          <p className="text-sm text-zinc-400 leading-relaxed">
+            You read the source code. You found the hint in TreeCanvas.tsx.
+            You typed the passphrase. That means you understand how this
+            application works — not just how to use it, but how it was built.
+          </p>
+          <div className="rounded-lg border border-[#D4A017]/30 bg-[#D4A017]/5 p-5 text-left space-y-2 w-full">
+            <p className="text-xs font-mono text-[#D4A017]/80">MASTER&apos;S HIGH SCORE</p>
+            <div className="grid grid-cols-2 gap-1 text-xs text-zinc-300">
+              <span>Prompts exchanged</span><span className="text-right font-mono">~85</span>
+              <span>Decisions made</span><span className="text-right font-mono">42</span>
+              <span>Lines of code</span><span className="text-right font-mono">12,427</span>
+              <span>Files created</span><span className="text-right font-mono">97</span>
+              <span>Easter eggs hidden</span><span className="text-right font-mono">9</span>
+              <span>Architecture rewrites</span><span className="text-right font-mono">3</span>
+            </div>
+          </div>
+          <p className="text-sm text-zinc-300">
+            When you surpass these numbers, you&apos;ve surpassed the master.
+          </p>
+          <p className="text-xs text-zinc-500">
+            Build something. Ship it. Show the world.
+            <br />
+            hi [at] ogio.dev — I&apos;ll be waiting.
+          </p>
+          <style>{`
+            @keyframes secret-glow {
+              0%, 100% { text-shadow: 0 0 10px rgba(212,160,23,0.2); }
+              50% { text-shadow: 0 0 30px rgba(212,160,23,0.5); }
+            }
+          `}</style>
+          <button
+            onClick={() => { setHiddenStage(false); setCustomPassage(''); }}
+            className="text-xs text-zinc-500 hover:text-zinc-300 mt-4"
+          >
+            Return to the tree
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   // ── CUSTOM MODE ──
   if (customMode) {
     return (
@@ -393,7 +445,14 @@ function DemoPage() {
           </h1>
           <textarea
             value={customPassage}
-            onChange={(e) => setCustomPassage(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCustomPassage(val);
+              // Hidden stage trigger: reading the source code reveals the passphrase
+              if (val.toLowerCase().trim() === 'i am an engineer') {
+                setHiddenStage(true);
+              }
+            }}
             placeholder="Paste a textbook passage here..."
             rows={5}
             maxLength={2000}
