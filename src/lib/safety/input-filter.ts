@@ -1,5 +1,20 @@
-// Input filter — Layer 2: PII detection + length validation + keyword blocklist
-// Runs server-side before sending to AI API
+/*
+ * Input Filter — Safety Layer 2.
+ *
+ * Validates and sanitizes user-submitted text before it reaches the AI.
+ * This is a server-side guard that runs synchronously (no async calls).
+ *
+ * Processing order:
+ *   1. Empty/whitespace check
+ *   2. Length limit (2000 chars from SAFETY_CONFIG)
+ *   3. PII detection and redaction
+ *
+ * Design choice: PII-containing input is ALLOWED (not blocked) after
+ * sanitization. Blocking would frustrate users who accidentally include
+ * a school name in their passage. Instead, PII is silently replaced with
+ * [REDACTED] before reaching the AI, and the piiDetection result is
+ * available for logging/analytics.
+ */
 
 import { detectPii, type PiiDetectionResult } from './pii-detector';
 import { SAFETY_CONFIG } from './config';
@@ -12,7 +27,6 @@ export interface InputFilterResult {
 }
 
 export function filterInput(text: string): InputFilterResult {
-  // Length check
   if (!text || text.trim().length === 0) {
     return { allowed: false, sanitizedText: '', reason: 'empty_input' };
   }

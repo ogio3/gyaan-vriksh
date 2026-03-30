@@ -1,3 +1,22 @@
+/*
+ * TreeCanvas — Core knowledge-tree visualization rendered in SVG.
+ *
+ * Uses d3-hierarchy for layout computation and framer-motion for animated
+ * transitions. The tree grows **bottom-to-top** (root at the bottom) to
+ * visually mirror a real tree growing upward, which matches the mental
+ * model of "exploring deeper = growing taller."
+ *
+ * Key design decisions:
+ *   - SVG over canvas: we need per-node interactivity (click, keyboard,
+ *     focus) and the node count stays manageable (<100 in practice).
+ *   - foreignObject for text: allows CSS text truncation (-webkit-line-clamp)
+ *     and natural line wrapping inside SVG cards.
+ *     Gotcha: foreignObject intercepts pointer events in some browsers,
+ *     so a transparent rect sits on top of each card to catch clicks.
+ *   - Card rarity system (N/R/SR/SSR) gamifies exploration; SSR cards get
+ *     holographic shimmer effects to reward discovery.
+ *   - Reduced-motion support: all animations respect prefers-reduced-motion.
+ */
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
@@ -5,7 +24,8 @@ import { hierarchy, tree as d3Tree } from "d3-hierarchy";
 import { motion, AnimatePresence } from "motion/react";
 import type { TreeNode, CardRarity } from "@/types/tree";
 
-// Card type colors
+// Each branch type has a distinct color so the tree is visually scannable.
+// These map to BranchType in the database schema (career, discovery, etc.).
 const TYPE_COLORS: Record<string, string> = {
   career: "#2D5BFF",
   discovery: "#7C3AED",
@@ -15,7 +35,8 @@ const TYPE_COLORS: Record<string, string> = {
   history: "#D97706",
 };
 
-// Rarity config
+// Gacha-inspired rarity tiers. Higher rarity = more visual flair (glow, stars).
+// SSR is intentionally rare (max 1 per AI response) to create "wow" moments.
 const RARITY_CONFIG: Record<string, { color: string; glow: string; stars: number }> = {
   N:   { color: "#71717a", glow: "none",                          stars: 1 },
   R:   { color: "#2D5BFF", glow: "0 0 8px rgba(45,91,255,0.3)",  stars: 2 },
@@ -23,11 +44,17 @@ const RARITY_CONFIG: Record<string, { color: string; glow: string; stars: number
   SSR: { color: "#D4A017", glow: "0 0 20px rgba(212,160,23,0.5)", stars: 4 },
 };
 
+// Card dimensions tuned for mobile-first: 180px wide fits two columns on
+// most phones without horizontal scroll. 252px tall accommodates title
+// (3 lines) + summary (4 lines) comfortably.
 const CARD_W = 180;
 const CARD_H = 252;
 const CARD_RX = 12;
+// Background dot grid size — purely cosmetic, gives the canvas a "workbench" feel
 const GRID_SIZE = 24;
 
+// Visual states implement progressive disclosure: the focused node and its
+// neighbors stay prominent while distant nodes fade to reduce cognitive load.
 type VisualState = "focused" | "active" | "peripheral";
 
 interface TreeCanvasProps {
@@ -39,12 +66,17 @@ interface TreeCanvasProps {
   secretMode?: boolean;
 }
 
+// Secret mode: when activated from hidden sprouts on the landing page,
+// the entire tree renders in gold tones instead of the standard palette.
 const GOLD = "#D4A017";
 const SECRET_TYPE_COLORS: Record<string, string> = {
   career: "#D4A017", discovery: "#B8860B", connection: "#DAA520",
   innovation: "#F4A236", mystery: "#CD853F", history: "#D4A017",
 };
 
+// Curiosity-provoking questions planted as nearly-invisible dots on the canvas.
+// Finding one rewards the user with a new tree exploration — an Easter egg
+// designed to model and reward intellectual curiosity itself.
 const SPROUT_PASSAGES = [
   "Why do we dream?", "How do languages die?",
   "What makes music emotional?", "Can plants communicate?",
@@ -57,6 +89,9 @@ export default function TreeCanvas({
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Accessibility: detect OS-level reduced-motion preference and disable
+  // spring animations accordingly. Listens for runtime changes (e.g., user
+  // toggles the setting while the app is open).
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mq.matches);
@@ -65,6 +100,9 @@ export default function TreeCanvas({
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Compute the "neighborhood" of the focused node: its parent, siblings,
+  // and direct children. Everything outside this neighborhood fades to
+  // "peripheral" state — this prevents visual overload as trees grow large.
   const activeIds = useMemo(() => {
     if (!focusedId) return new Set<string>();
     const ids = new Set<string>();
@@ -72,6 +110,7 @@ export default function TreeCanvas({
       if (node.id === focusedId) {
         if (parent) ids.add(parent.id);
         for (const c of node.children ?? []) ids.add(c.id);
+        // Include siblings (other children of the same parent)
         if (parent) for (const s of parent.children ?? []) ids.add(s.id);
       }
       for (const c of node.children ?? []) walk(c, node);
@@ -87,7 +126,10 @@ export default function TreeCanvas({
     return "peripheral";
   }
 
-  // Bottom-to-Top layout
+  // Layout computation: d3-hierarchy computes a top-down tree, then we
+  // flip Y coordinates to render bottom-to-top (root at bottom).
+  // The nodeSize spacing (CARD_W+24, CARD_H+50) prevents card overlap
+  // while keeping the tree compact enough to scan visually.
   const { nodes, links, svgWidth, svgHeight } = useMemo(() => {
     const root = hierarchy(data);
     const treeLayout = d3Tree<TreeNode>().nodeSize([CARD_W + 24, CARD_H + 50]);
@@ -96,6 +138,7 @@ export default function TreeCanvas({
     const allNodes = root.descendants();
     const allLinks = root.links();
 
+    // Calculate bounding box to size the SVG and center the tree
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const n of allNodes) {
       if (n.x! < minX) minX = n.x!;
@@ -109,6 +152,7 @@ export default function TreeCanvas({
     const h = maxY - minY + CARD_H + pad * 2;
     const offsetX = -minX + CARD_W / 2 + pad;
     const offsetY = -minY + CARD_H / 2 + pad;
+    // maxTotalY is used to flip Y: y_flipped = maxTotalY - y_original
     const maxTotalY = maxY + offsetY + CARD_H / 2 + pad;
 
     return {
@@ -136,7 +180,9 @@ export default function TreeCanvas({
     };
   }, [data]);
 
-  // Auto-scroll to newest node
+  // Auto-scroll to the topmost (newest) node after the tree layout updates.
+  // Because the tree grows upward, new branches appear at lower Y values.
+  // This keeps the latest exploration visible without manual scrolling.
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) return;
     const topNode = nodes.reduce((min, n) => (n.y < min.y ? n : min), nodes[0]);
@@ -147,6 +193,9 @@ export default function TreeCanvas({
     });
   }, [nodes, prefersReducedMotion]);
 
+  // Animation presets: spring physics for card movements (organic feel),
+  // easeInOut for path drawing (smooth and predictable).
+  // Both collapse to instant (duration: 0) when reduced motion is active.
   const spring = prefersReducedMotion ? { duration: 0 } : { type: "spring" as const, stiffness: 160, damping: 20 };
   const pathAnim = prefersReducedMotion ? { duration: 0 } : { duration: 0.5, ease: "easeInOut" as const };
 
@@ -167,6 +216,9 @@ export default function TreeCanvas({
         {/* Links */}
         <AnimatePresence>
           {links.map((link) => {
+            // Cubic bezier curves between parent and child nodes.
+            // The control points are horizontally aligned with source/target
+            // and vertically at the midpoint, creating smooth S-shaped connections.
             const midY = (link.sourceY + link.targetY) / 2;
             const d = `M ${link.sourceX} ${link.sourceY} C ${link.sourceX} ${midY}, ${link.targetX} ${midY}, ${link.targetX} ${link.targetY}`;
             return (
@@ -271,12 +323,19 @@ export default function TreeCanvas({
                   </text>
                 )}
 
-                {/* Transparent click layer (topmost, catches all clicks) */}
+                {/* Transparent click layer — MUST be the topmost element.
+                    Gotcha: foreignObject elements above intercept pointer
+                    events in Safari/Firefox even with pointerEvents:"none"
+                    on some OS versions. This invisible rect guarantees
+                    clicks always reach the motion.g onClick handler. */}
                 <rect width={CARD_W} height={CARD_H} rx={CARD_RX}
                   fill="transparent" style={{ cursor: "pointer" }}
                 />
 
-                {/* Expanding: breathing meditation effect (4-7-8 rhythm) */}
+                {/* Expanding indicator: two concentric pulsing outlines.
+                    Uses SVG <animate> (not framer-motion) because this runs
+                    continuously during AI streaming and SVG SMIL animations
+                    are GPU-composited and don't trigger React re-renders. */}
                 {isExpanding && (
                   <>
                     <rect width={CARD_W + 8} height={CARD_H + 8} x={-4} y={-4} rx={CARD_RX + 2}
@@ -308,7 +367,10 @@ export default function TreeCanvas({
           </linearGradient>
         </defs>
 
-        {/* Hidden Sprouts */}
+        {/* Hidden Sprouts — nearly invisible 2.5px green dots scattered
+            across the canvas. Clicking one triggers a new exploration.
+            Positions are deterministic (seeded by index * primes) so they
+            stay stable across re-renders but appear random. */}
         {onHiddenSproutClick && SPROUT_PASSAGES.map((passage, i) => {
           const sx = ((i * 317 + 89) % (svgWidth - 100)) + 50;
           const sy = ((i * 251 + 137) % (svgHeight - 100)) + 50;

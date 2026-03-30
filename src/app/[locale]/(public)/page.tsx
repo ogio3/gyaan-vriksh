@@ -24,6 +24,11 @@ import { useState, useCallback, useRef, type ReactNode } from 'react';
 import TreeCanvas from '@/components/TreeCanvas';
 import type { TreeNode } from '@/types/tree';
 
+// Hidden "seeds" — words in the landing page copy that, when clicked,
+// trigger a secret golden tree exploration. Each key is a word that
+// appears naturally in the page text; each value is a curiosity-provoking
+// passage that seeds the AI exploration. The Sanskrit and Hindi words
+// (ज्ञान = knowledge, वृक्ष = tree) are in the page title itself.
 const SEEDS: Record<string, string> = {
   'ज्ञान': 'What does knowledge mean? The Sanskrit word Jnana refers to awareness that transcends mere information — it is the direct experiential understanding of reality itself.',
   'वृक्ष': 'Why are trees sacred in every culture? The Bodhi Tree, Yggdrasil, the Tree of Knowledge — humanity has always mapped wisdom onto branching structures.',
@@ -37,6 +42,9 @@ const GOLD = '#D4A017';
 
 type SecretBranch = { branchType: string; label: string; summary: string; bloomLevel: string; rarity: string };
 
+// NDJSON stream parser — same logic as the demo page's streamBranches.
+// Duplicated here rather than shared because this page and the demo page
+// are independent entry points and tree-shaking works better with co-located code.
 async function streamBranchesFromReader(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onBranch: (b: SecretBranch) => void,
@@ -69,6 +77,10 @@ async function streamBranchesFromReader(
 
 let nextSecretId = 0;
 
+// A clickable word with a tiny pulsing dot indicator. The dot is intentionally
+// almost invisible (4px, low opacity) — only the observant will notice it,
+// rewarding careful attention. The hover color shift to amber hints at the
+// gold theme of secret trees.
 function Seed({
   word,
   passage,
@@ -97,6 +109,11 @@ function Seed({
   );
 }
 
+// Scans a text string for SEEDS keywords and replaces each occurrence
+// with a clickable <Seed> component, preserving the original casing.
+// The scanning is case-insensitive but the rendered text matches the
+// source. Keywords are sorted by position to handle left-to-right
+// splitting correctly.
 function TextWithSeeds({
   children,
   onActivate,
@@ -143,6 +160,11 @@ export default function HomePage() {
   const [blooming, setBlooming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  // When a hidden seed is clicked, this fetches branches from the same
+  // /api/demo/explore endpoint used by the demo page, but renders the
+  // resulting tree in gold ("secret mode") directly on the landing page.
+  // This creates a moment of surprise — the marketing page transforms
+  // into a live product demo without navigation.
   const activateSecret = useCallback(async (passage: string) => {
     abortRef.current?.abort();
     const controller = new AbortController();

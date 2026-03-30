@@ -1,5 +1,21 @@
-// System prompt builder — Layer 1: age-aware instructions
-// Constructs the Claude system prompt with age-bracket-specific constraints
+/*
+ * System Prompt Builder — Safety Layer 1.
+ *
+ * Constructs the Claude system prompt by composing multiple sections:
+ *   - Base identity and rules (always present)
+ *   - Age-bracket-specific constraints (Bloom's level, language complexity,
+ *     salary display format, topic exclusions)
+ *   - Gambling exclusion (redirects probability topics to ethical careers)
+ *   - Cultural sensitivity (multi-market international deployment)
+ *   - Substance exclusion (redirects food science away from alcohol/tobacco)
+ *   - Locale-specific language instruction (when non-English)
+ *   - Response format specification (JSON schema for knowledge cards)
+ *
+ * Design rationale: prompts are composed from modular sections rather than
+ * stored as complete templates because different deployment contexts
+ * (UAE, EU, US) may need different section combinations. Each section
+ * is self-contained and can be independently tested.
+ */
 
 import type { AgeBracket } from '@/types/database';
 import { getContentTier } from './content-tiers';
@@ -58,6 +74,10 @@ For food science passages, redirect to:
 - Agricultural technology
 - Sustainable farming`;
 
+// Generates age-bracket-specific instructions. Maps the internal tier
+// config (maxBloomLevel, languageComplexity, etc.) into natural-language
+// instructions that the AI model can follow. Returns empty string for
+// brackets without a defined tier (under_10, adult).
 function buildAgeTierPrompt(ageBracket: AgeBracket): string {
   const tier = getContentTier(ageBracket);
   if (!tier) return '';
@@ -97,6 +117,9 @@ export interface SystemPromptOptions {
   locale?: string;
 }
 
+// Compose all prompt sections into a single system prompt string.
+// Order matters: base identity first, then constraints, then format.
+// The AI sees these as one continuous document.
 export function buildSystemPrompt(options: SystemPromptOptions): string {
   const parts = [
     BASE_PROMPT,

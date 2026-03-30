@@ -1,3 +1,21 @@
+/*
+ * Age-Based Content Tiers — maps age brackets to content constraints.
+ *
+ * Three tiers cover the target user base (10-17 year olds):
+ *   - 10-12: Simplified language, no salary numbers, max 2 depth levels,
+ *            excludes politically controversial and violent topics
+ *   - 13-15: Moderate language, full salary ranges, 4 depth levels
+ *   - 16-17: Advanced language, unlimited depth, no topic exclusions
+ *
+ * under_10 and adult brackets return null (no tier) because:
+ *   - under_10: product is not designed for this age group (COPPA risk)
+ *   - adult: no content restrictions needed
+ *
+ * Bloom's taxonomy levels control cognitive complexity:
+ *   remember < understand < apply < analyze < evaluate < create
+ *   Younger students get lower max levels to keep content accessible.
+ */
+
 import type { AgeBracket, BloomLevel } from '@/types/database';
 
 export interface ContentTier {

@@ -1,5 +1,21 @@
-// Output filter — Layer 4: Perspective API + keyword scan
-// FAIL-SAFE: Perspective API unavailable = block response
+/*
+ * Output Filter — Safety Layer 4.
+ *
+ * Validates AI-generated content BEFORE it reaches the student.
+ * This is the last line of defense — even if the system prompt fails
+ * to prevent inappropriate content, this filter catches it.
+ *
+ * Processing order (fast-to-slow, short-circuit on first failure):
+ *   1. Gambling keyword scan (instant, string matching)
+ *   2. Substance keyword scan (instant, string matching)
+ *   3. UAE content standards (instant, regex matching)
+ *   4. Perspective API toxicity check (async, ~200ms)
+ *
+ * FAIL-SAFE principle: if the Perspective API is down, unavailable, or
+ * returns an error, the response is BLOCKED (not passed through). This
+ * is a deliberate choice for a children's product — false negatives are
+ * far worse than false positives.
+ */
 
 import { checkToxicity } from './perspective';
 import { SAFETY_CONFIG } from './config';
@@ -16,7 +32,7 @@ export async function filterOutput(
   apiKey: string,
   applyUaeStandards: boolean = true,
 ): Promise<OutputFilterResult> {
-  // 1. Gambling keyword scan
+  // 1. Gambling keyword scan — fast string matching before expensive API calls
   const textLower = text.toLowerCase();
   for (const keyword of SAFETY_CONFIG.gamblingKeywords) {
     if (textLower.includes(keyword.toLowerCase())) {
@@ -31,7 +47,10 @@ export async function filterOutput(
     }
   }
 
-  // 3. UAE content standards (Layer 2.5)
+  // 3. UAE content standards (Layer 2.5). Applied when content standard
+  // is 'international' (union of all markets = strictest) or 'uae'.
+  // 'redirect' = hard block, 'frame' = advisory (content is allowed but
+  // the consuming UI should present it with cultural sensitivity framing).
   if (applyUaeStandards || SAFETY_CONFIG.contentStandards === 'international' || SAFETY_CONFIG.contentStandards === 'uae') {
     const uaeResult = checkUaeContentStandards(text);
     if (uaeResult.action === 'redirect') {
@@ -41,10 +60,10 @@ export async function filterOutput(
         uaeAction: 'redirect',
       };
     }
-    // 'frame' is advisory — content is allowed but should be presented with cultural sensitivity
   }
 
-  // 4. Perspective API toxicity check (fail-safe)
+  // 4. Perspective API — the most comprehensive check but also the slowest.
+  // Placed last so keyword scans can short-circuit before the network call.
   const toxicityResult = await checkToxicity(text, apiKey);
   if (toxicityResult.blocked) {
     return {

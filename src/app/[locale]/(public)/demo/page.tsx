@@ -1,3 +1,25 @@
+/*
+ * Demo Page — The primary unauthenticated experience.
+ *
+ * Flow: typewriter intro -> "Grow the Knowledge Tree" CTA -> AI-streamed
+ * tree visualization -> click-to-expand any leaf node.
+ *
+ * This page does NOT require Supabase or authentication. It calls the
+ * /api/demo/explore and /api/demo/expand endpoints which are rate-limited
+ * by IP (5 explores/hr, 20 expands/hr).
+ *
+ * Supports two entry modes:
+ *   1. Organic: user sees typewriter, clicks CTA, gets a showcase tree
+ *   2. Secret: user arrives with ?secret=<passage> query param from landing
+ *      page hidden sprouts — auto-triggers exploration immediately
+ *
+ * State machine (Phase):
+ *   before -> streaming -> exploring <-> expanding
+ *   - before: typewriter or custom-paste input
+ *   - streaming: initial AI call in progress, branches arriving
+ *   - exploring: tree rendered, user can click nodes
+ *   - expanding: a node is being expanded with sub-branches
+ */
 'use client';
 
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
@@ -5,6 +27,8 @@ import { useSearchParams } from 'next/navigation';
 import TreeCanvas from '@/components/TreeCanvas';
 import type { TreeNode } from '@/types/tree';
 
+// These passages are pre-loaded answers for the hidden sprout Easter eggs.
+// They match the SPROUT_PASSAGES in TreeCanvas.tsx.
 const HIDDEN_PASSAGES = [
   'Why do we dream? Scientists believe dreams help consolidate memories and simulate scenarios.',
   'How do languages die? When the last speaker passes, an entire worldview vanishes.',
@@ -13,6 +37,9 @@ const HIDDEN_PASSAGES = [
   'Can plants communicate? Trees share nutrients through underground fungal networks.',
 ];
 
+// Default passage shown in the typewriter animation. Chosen because
+// photosynthesis is universally taught, culturally neutral, and branches
+// well into career, discovery, and connection types.
 const SHOWCASE_PASSAGE =
   'Photosynthesis is the process by which green plants convert sunlight, water, and carbon dioxide into oxygen and energy-rich organic compounds.';
 
@@ -26,7 +53,12 @@ interface BranchData {
   rarity: string;
 }
 
-// Stream NDJSON: read line-by-line, parse each as a complete branch
+// Incrementally parse an NDJSON (newline-delimited JSON) stream.
+// Each line is a complete JSON object representing one branch.
+// This approach shows branches appearing one-by-one as the AI generates
+// them, rather than waiting for the full response — critical for the
+// "tree growing" illusion. Malformed lines are silently skipped because
+// partial JSON chunks arrive mid-stream before a line is complete.
 async function streamBranches(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   onBranch: (branch: BranchData) => void,
@@ -63,11 +95,19 @@ async function streamBranches(
   }
 }
 
+// Module-level counter for generating unique node IDs. Reset when the user
+// starts a fresh tree ("Try your own passage"). Using a module-level var
+// instead of useRef because genId is called outside the component in
+// stream callbacks.
 let nextId = 0;
 function genId() {
   return `n-${++nextId}`;
 }
 
+// Immutably append children to a specific node in the tree.
+// Returns a new tree object (required for React state updates to trigger
+// re-render). Uses recursive descent because tree depth is bounded by
+// content-tier maxDepth (2-4 levels typically).
 function addChildrenToNode(
   tree: TreeNode,
   parentId: string,
@@ -89,6 +129,9 @@ function countNodes(node: TreeNode): number {
   return count;
 }
 
+// Wrapper needed because DemoPage uses useSearchParams(), which requires
+// a Suspense boundary in Next.js App Router to avoid the entire page
+// becoming a client-side render boundary.
 export default function DemoPageWrapper() {
   return (
     <Suspense>
@@ -114,7 +157,10 @@ function DemoPage() {
   const charIndexRef = useRef(0);
   const triggerExploreRef = useRef<((p: string) => void) | null>(null);
 
-  // Typewriter
+  // Typewriter effect: reveals the showcase passage character-by-character
+  // at 18ms intervals (~55 chars/sec). After the full text is shown, the
+  // CTA button appears with a 400ms delay for dramatic effect.
+  // Skipped if the user is in custom-paste mode or has already started exploring.
   useEffect(() => {
     if (customMode || phase !== 'before') return;
     charIndexRef.current = 0;
@@ -135,7 +181,9 @@ function DemoPage() {
     };
   }, [customMode, phase]);
 
-  // Secret passage auto-trigger (Easter Egg from landing page)
+  // Easter egg: if the URL contains ?secret=<passage>, auto-trigger an
+  // exploration. This is how the landing page's hidden seeds navigate here.
+  // secretTriggered ref prevents double-firing on React strict mode re-mount.
   useEffect(() => {
     const secret = searchParams.get('secret');
     if (secret && !secretTriggered.current) {
@@ -144,7 +192,10 @@ function DemoPage() {
     }
   }, [searchParams]);
 
-  // Initial explore (passage → first branches)
+  // Initial exploration: sends a passage to /api/demo/explore and streams
+  // back branches as NDJSON. Creates the root node immediately (optimistic UI),
+  // then appends children as they arrive from the AI. Aborts any in-flight
+  // request first to prevent race conditions from rapid clicks.
   const triggerExplore = useCallback(async (passage: string) => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -200,14 +251,17 @@ function DemoPage() {
     }
   }, []);
 
-  // Keep ref in sync for secret auto-trigger
+  // Sync the ref so the secret-passage useEffect (which fires before
+  // triggerExplore is stable) can call the latest version.
   triggerExploreRef.current = triggerExplore;
 
-  // Expand: click a node → generate sub-branches
+  // Node expansion: when a leaf node is clicked, fetch sub-branches from
+  // /api/demo/expand. If the node already has children, just shift focus
+  // to it (no redundant API calls). During streaming/expanding phases,
+  // clicks are ignored to prevent concurrent mutations to the tree state.
   const handleNodeClick = useCallback(async (node: TreeNode) => {
-    if (phase === 'streaming' || phase === 'expanding') return; // busy
+    if (phase === 'streaming' || phase === 'expanding') return;
     if (node.children && node.children.length > 0) {
-      // Already expanded — just focus
       setFocusedId(node.id);
       return;
     }
@@ -240,6 +294,10 @@ function DemoPage() {
       const expandBaseId = ++nextId;
       const expandChildren: TreeNode[] = [];
 
+      // Stream sub-branches. On each new branch, we remove then re-add
+      // all children to the target node. This "replace all" approach is
+      // simpler than incremental append and avoids duplicate-key issues
+      // if the stream re-sends a partially completed branch.
       await streamBranches(reader, (b) => {
         expandChildren.push({
           id: `e-${expandBaseId}-${expandChildren.length}`,
@@ -266,6 +324,8 @@ function DemoPage() {
     }
   }, [phase, tree]);
 
+  // Cleanup: abort any in-flight fetch when the component unmounts
+  // (e.g., user navigates away mid-stream).
   useEffect(() => {
     return () => abortRef.current?.abort();
   }, []);
@@ -391,6 +451,9 @@ function DemoPage() {
 
 // --- Helpers ---
 
+// Walk the tree to find the depth of a specific node. Returns -1 if
+// the node isn't found. Used to tell the AI how deep we are, so it
+// can adjust branch specificity (deeper = more niche/surprising content).
 function countDepth(tree: TreeNode, targetId: string, depth = 0): number {
   if (tree.id === targetId) return depth;
   for (const c of tree.children ?? []) {
@@ -400,6 +463,9 @@ function countDepth(tree: TreeNode, targetId: string, depth = 0): number {
   return -1;
 }
 
+// Strip all children from a specific node, returning a new tree.
+// Used before addChildrenToNode during streaming to avoid appending
+// duplicate children when the stream callback fires multiple times.
 function removeChildrenFromNode(tree: TreeNode, nodeId: string): TreeNode {
   if (tree.id === nodeId) {
     return { ...tree, children: undefined };

@@ -1,5 +1,23 @@
-// PII detection patterns — COPPA 2025 expanded definitions
-// Runs both client-side (convenience) and server-side (safety invariant)
+/*
+ * PII Detection — COPPA 2025 compliance layer.
+ *
+ * Detects personally identifiable information in user input before it
+ * reaches the AI model. Covers COPPA 2025's expanded definition of PII
+ * including biometric references, government IDs, and school identifiers
+ * (not just the traditional email/phone/name).
+ *
+ * The sanitized output replaces each detection with [REDACTED], preserving
+ * the text structure so the AI can still understand the context. Replacements
+ * are applied from end-to-start to avoid index shifting.
+ *
+ * Gotcha: these patterns intentionally cast a wide net. The school_name
+ * pattern will match non-school phrases like "College of Cardinals" — false
+ * positives are acceptable because the text is sanitized (not blocked).
+ *
+ * Multilingual: includes Hindi (मेरा नाम), Japanese (私の名前は), and
+ * Punjabi (ਮੇਰਾ ਨਾਮ) name-introduction patterns because the app serves
+ * Indian and Japanese markets.
+ */
 
 export const PII_PATTERNS: Record<string, RegExp> = {
   // Core identifiers
@@ -28,11 +46,14 @@ export interface PiiDetectionResult {
   sanitized: string;
 }
 
+// Scan text for all PII patterns and return both the detection results
+// and a sanitized version of the text with PII replaced by [REDACTED].
+// Gotcha: global RegExp patterns have mutable lastIndex state — we must
+// reset it before each exec loop or subsequent calls will miss matches.
 export function detectPii(text: string): PiiDetectionResult {
   const detections: PiiDetectionResult['detections'] = [];
 
   for (const [type, pattern] of Object.entries(PII_PATTERNS)) {
-    // Reset lastIndex for global patterns
     pattern.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(text)) !== null) {
@@ -45,7 +66,8 @@ export function detectPii(text: string): PiiDetectionResult {
   }
 
   let sanitized = text;
-  // Sort by index descending to replace from end (preserves earlier indices)
+  // Sort by index descending so replacing from the end doesn't invalidate
+  // earlier match indices. This avoids the need for offset tracking.
   const sorted = [...detections].sort((a, b) => b.index - a.index);
   for (const d of sorted) {
     sanitized =
@@ -61,6 +83,8 @@ export function detectPii(text: string): PiiDetectionResult {
   };
 }
 
+// Convenience wrapper when you only need the sanitized text and don't
+// care about individual detections.
 export function stripPii(text: string): string {
   return detectPii(text).sanitized;
 }

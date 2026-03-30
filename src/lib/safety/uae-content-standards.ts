@@ -1,8 +1,24 @@
-// UAE Federal Decree-Law No. 26/2025 — Media Content Standards filter
-// Layer 2.5: sits between system prompt (Layer 1) and output filter (Layer 4)
+/*
+ * UAE Content Standards Filter — Layer 2.5.
+ *
+ * Implements keyword-based filtering aligned with UAE Federal Decree-Law
+ * No. 26/2025 on media content standards. This is required for UAE market
+ * deployment and is also applied under the 'international' content standard
+ * (which unions all market standards to be maximally safe).
+ *
+ * Three-tier action model:
+ *   - redirect: hard block, content must not be generated at all
+ *   - frame: content is allowed but should be presented with a cultural
+ *     sensitivity disclaimer (e.g., "different cultures view this differently")
+ *   - pass: no special handling needed
+ *
+ * Gotcha: the regex patterns are intentionally broad. "evolution" triggers
+ * a 'frame' action even in non-controversial contexts (e.g., "evolution of
+ * computing"). This is acceptable because 'frame' only adds context, it
+ * doesn't block content.
+ */
 
 export const UAE_SENSITIVE_TOPICS = {
-  // ALWAYS redirect — never generate content on these
   always_redirect: [
     'criticism_of_uae_government',
     'criticism_of_uae_royal_families',
@@ -36,7 +52,9 @@ export const UAE_SENSITIVE_TOPICS = {
   ],
 } as const;
 
-// Keywords that indicate content may touch UAE-sensitive topics
+// Redirect keywords: compound regex patterns that require BOTH a sensitive
+// entity AND a negative modifier. "islam" alone doesn't trigger; "islam
+// criticism" does. This reduces false positives in educational contexts.
 const UAE_REDIRECT_KEYWORDS = [
   /\b(uae|emirates|dubai|abu\s*dhabi)\s*(government|ruling|royal|sheikh)/gi,
   /\b(islam|quran|muslim|mosque)\s*(criticism|problem|wrong|bad|fake)/gi,
@@ -45,6 +63,9 @@ const UAE_REDIRECT_KEYWORDS = [
   /\b(convert|proselyt|evangelize|missionary)\b/gi,
 ];
 
+// Sensitive keywords: single-word patterns for topics that are allowed but
+// need cultural framing. These are common educational terms, so the 'frame'
+// action is advisory rather than blocking.
 const UAE_SENSITIVE_KEYWORDS = [
   /\b(evolution|creationism|darwin)\b/gi,
   /\b(colonialism|colonial|imperialism)\b/gi,
