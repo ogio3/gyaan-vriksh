@@ -37,10 +37,19 @@ const GOLD = '#D4A017';
 
 function extractBranches(text: string) {
   const branches: Array<{ branchType: string; label: string; summary: string; bloomLevel: string; rarity: string }> = [];
-  const pattern = /\{\s*"branchType"\s*:\s*"([^"]+)"\s*,\s*"label"\s*:\s*"([^"]+)"\s*,\s*"summary"\s*:\s*"([^"]+)"\s*,\s*"bloomLevel"\s*:\s*"([^"]+)"\s*,\s*"rarity"\s*:\s*"([^"]+)"\s*\}/g;
-  let match;
-  while ((match = pattern.exec(text)) !== null) {
-    branches.push({ branchType: match[1], label: match[2], summary: match[3], bloomLevel: match[4], rarity: match[5] });
+  const objectPattern = /\{[^{}]*"branchType"\s*:\s*"[^"]+"\s*[^{}]*\}/g;
+  let objMatch;
+  while ((objMatch = objectPattern.exec(text)) !== null) {
+    try {
+      const obj = JSON.parse(objMatch[0]);
+      if (obj.branchType && obj.label) {
+        branches.push({
+          branchType: obj.branchType, label: obj.label,
+          summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand',
+          rarity: obj.rarity ?? 'N',
+        });
+      }
+    } catch { /* partial JSON, skip */ }
   }
   return branches;
 }

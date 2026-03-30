@@ -271,11 +271,21 @@ export default function TreeCanvas({
                   </text>
                 )}
 
-                {/* Expanding pulse */}
+                {/* Expanding: breathing meditation effect (4-7-8 rhythm) */}
                 {isExpanding && (
-                  <rect width={CARD_W + 4} height={CARD_H + 4} x={-2} y={-2} rx={CARD_RX + 1}
-                    fill="none" stroke={borderColor} strokeWidth={1} opacity={0.4} className="animate-pulse"
-                  />
+                  <>
+                    <rect width={CARD_W + 8} height={CARD_H + 8} x={-4} y={-4} rx={CARD_RX + 2}
+                      fill="none" stroke={borderColor} strokeWidth={1.5}
+                    >
+                      <animate attributeName="opacity" values="0.15;0.5;0.5;0.15" dur="4s" repeatCount="indefinite" />
+                      <animate attributeName="stroke-width" values="1;2.5;2.5;1" dur="4s" repeatCount="indefinite" />
+                    </rect>
+                    <rect width={CARD_W + 16} height={CARD_H + 16} x={-8} y={-8} rx={CARD_RX + 4}
+                      fill="none" stroke={borderColor} strokeWidth={0.5}
+                    >
+                      <animate attributeName="opacity" values="0;0.2;0.2;0" dur="4s" repeatCount="indefinite" />
+                    </rect>
+                  </>
                 )}
               </motion.g>
             );
