@@ -420,7 +420,8 @@ export default function TreeCanvas({
                 { x: centerX + 90, y: groundY + 220, text: '42 decisions' },
                 { x: centerX - 60, y: groundY + 280, text: '12,427 lines' },
                 { x: centerX + 140, y: groundY + 160, text: '97 files' },
-                { x: centerX + 20, y: groundY + 320, text: 'surpass me' },
+                { x: centerX + 20, y: groundY + 320, text: '7.5 hours' },
+                { x: centerX - 30, y: groundY + 380, text: 'surpass me' },
               ].map((node, i) => (
                 <g key={`myc-node-${i}`}>
                   <circle cx={node.x} cy={node.y} r={4} fill="#D4A017" opacity={0.4}>
@@ -480,6 +481,7 @@ export default function TreeCanvas({
  *
  * This tree was grown in a single session.
  *
+ *   Time to build:       7.5 hours (5:00 AM — 12:30 PM)
  *   Prompts exchanged:     ~85
  *   Decisions made:         42
  *   Lines of code:      12,427

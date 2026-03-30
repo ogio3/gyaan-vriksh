@@ -402,6 +402,7 @@ function DemoPage() {
           <div className="rounded-lg border border-[#D4A017]/30 bg-[#D4A017]/5 p-5 text-left space-y-2 w-full">
             <p className="text-xs font-mono text-[#D4A017]/80">MASTER&apos;S HIGH SCORE</p>
             <div className="grid grid-cols-2 gap-1 text-xs text-zinc-300">
+              <span>Time to build</span><span className="text-right font-mono">7.5 hours</span>
               <span>Prompts exchanged</span><span className="text-right font-mono">~85</span>
               <span>Decisions made</span><span className="text-right font-mono">42</span>
               <span>Lines of code</span><span className="text-right font-mono">12,427</span>
