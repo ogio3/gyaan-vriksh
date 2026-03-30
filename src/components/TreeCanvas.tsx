@@ -223,11 +223,11 @@ export default function TreeCanvas({
 
                 {/* Art area (top section with gradient) */}
                 <rect x={8} y={8} width={CARD_W - 16} height={90} rx={8}
-                  fill={typeColor} opacity={0.15}
+                  fill={typeColor} opacity={0.15} style={{ pointerEvents: "none" }}
                 />
 
                 {/* Type icon area */}
-                <foreignObject x={12} y={14} width={CARD_W - 24} height={78}>
+                <foreignObject x={12} y={14} width={CARD_W - 24} height={78} style={{ pointerEvents: "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100%", gap: 4 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: typeColor, textTransform: "uppercase", letterSpacing: "0.1em" }}>
                       {(node.branchType ?? "").replace("_", " ")}
@@ -236,14 +236,14 @@ export default function TreeCanvas({
                 </foreignObject>
 
                 {/* Rarity stars */}
-                <foreignObject x={CARD_W - 60} y={10} width={52} height={20}>
+                <foreignObject x={CARD_W - 60} y={10} width={52} height={20} style={{ pointerEvents: "none" }}>
                   <div style={{ textAlign: "right", fontSize: 10, color: rarity.color }}>
                     {"★".repeat(rarity.stars)}
                   </div>
                 </foreignObject>
 
                 {/* Card content */}
-                <foreignObject x={12} y={104} width={CARD_W - 24} height={CARD_H - 120}>
+                <foreignObject x={12} y={104} width={CARD_W - 24} height={CARD_H - 120} style={{ pointerEvents: "none" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "100%" }}>
                     <span className="text-zinc-100" style={{
                       fontSize: 14, fontWeight: 700, lineHeight: 1.25,
@@ -270,6 +270,11 @@ export default function TreeCanvas({
                     tap to explore
                   </text>
                 )}
+
+                {/* Transparent click layer (topmost, catches all clicks) */}
+                <rect width={CARD_W} height={CARD_H} rx={CARD_RX}
+                  fill="transparent" style={{ cursor: "pointer" }}
+                />
 
                 {/* Expanding: breathing meditation effect (4-7-8 rhythm) */}
                 {isExpanding && (

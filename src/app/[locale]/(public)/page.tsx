@@ -35,23 +35,36 @@ const SEEDS: Record<string, string> = {
 
 const GOLD = '#D4A017';
 
-function extractBranches(text: string) {
-  const branches: Array<{ branchType: string; label: string; summary: string; bloomLevel: string; rarity: string }> = [];
-  const objectPattern = /\{[^{}]*"branchType"\s*:\s*"[^"]+"\s*[^{}]*\}/g;
-  let objMatch;
-  while ((objMatch = objectPattern.exec(text)) !== null) {
-    try {
-      const obj = JSON.parse(objMatch[0]);
-      if (obj.branchType && obj.label) {
-        branches.push({
-          branchType: obj.branchType, label: obj.label,
-          summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand',
-          rarity: obj.rarity ?? 'N',
-        });
-      }
-    } catch { /* partial JSON, skip */ }
+type SecretBranch = { branchType: string; label: string; summary: string; bloomLevel: string; rarity: string };
+
+async function streamBranchesFromReader(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onBranch: (b: SecretBranch) => void,
+) {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const obj = JSON.parse(line.trim());
+        if (obj.branchType && obj.label) {
+          onBranch({ branchType: obj.branchType, label: obj.label, summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand', rarity: obj.rarity ?? 'N' });
+        }
+      } catch { /* skip */ }
+    }
   }
-  return branches;
+  if (buffer.trim()) {
+    try {
+      const obj = JSON.parse(buffer.trim());
+      if (obj.branchType && obj.label) onBranch({ branchType: obj.branchType, label: obj.label, summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand', rarity: obj.rarity ?? 'N' });
+    } catch { /* skip */ }
+  }
 }
 
 let nextSecretId = 0;
@@ -159,32 +172,25 @@ export default function HomePage() {
       const reader = response.body?.getReader();
       if (!reader) return;
 
-      const decoder = new TextDecoder();
-      let accumulated = '';
-      let lastCount = 0;
       const baseId = ++nextSecretId;
+      const rootLabel = passage.length > 50 ? passage.slice(0, 47) + '...' : passage;
+      const collected: TreeNode[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        const parsed = extractBranches(accumulated);
-        if (parsed.length > lastCount) {
-          lastCount = parsed.length;
-          setSecretTree({
-            id: 'secret-root',
-            label: passage.length > 50 ? passage.slice(0, 47) + '...' : passage,
-            children: parsed.map((b, i) => ({
-              id: `s-${baseId}-${i}`,
-              label: b.label,
-              branchType: b.branchType as TreeNode['branchType'],
-              bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
-              summary: b.summary,
-              rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
-            })),
-          });
-        }
-      }
+      await streamBranchesFromReader(reader, (b) => {
+        collected.push({
+          id: `s-${baseId}-${collected.length}`,
+          label: b.label,
+          branchType: b.branchType as TreeNode['branchType'],
+          bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
+          summary: b.summary,
+          rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
+        });
+        setSecretTree({
+          id: 'secret-root',
+          label: rootLabel,
+          children: [...collected],
+        });
+      });
 
       setBlooming(false);
     } catch (e) {

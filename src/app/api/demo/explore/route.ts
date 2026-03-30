@@ -11,22 +11,12 @@ const branchSchema = z.object({
   branches: z.array(
     z.object({
       branchType: z.enum([
-        'career',
-        'discovery',
-        'connection',
-        'innovation',
-        'mystery',
-        'history',
+        'career', 'discovery', 'connection', 'innovation', 'mystery', 'history',
       ]),
       label: z.string(),
       summary: z.string(),
       bloomLevel: z.enum([
-        'remember',
-        'understand',
-        'apply',
-        'analyze',
-        'evaluate',
-        'create',
+        'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create',
       ]),
       rarity: z.enum(['N', 'R', 'SR', 'SSR']),
     }),
@@ -34,7 +24,6 @@ const branchSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  // IP-based rate limit: 5 explorations per hour for demo
   const headerStore = await headers();
   const ip = headerStore.get('x-forwarded-for') ?? 'unknown';
   const { success } = rateLimit(`demo:${ip}`, 5, 3_600_000);
@@ -63,7 +52,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Demo uses 13_15 age bracket (middle tier)
   const systemPrompt = buildSystemPrompt({
     ageBracket: '13_15',
     locale: 'en',
@@ -78,5 +66,38 @@ export async function POST(request: Request) {
     abortSignal: request.signal,
   });
 
-  return result.toTextStreamResponse();
+  // Stream completed branches as NDJSON (one JSON line per update)
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      let lastCount = 0;
+      try {
+        for await (const partial of result.partialObjectStream) {
+          const branches = partial.branches;
+          if (branches && branches.length > lastCount) {
+            // Send only newly completed branches
+            for (let i = lastCount; i < branches.length; i++) {
+              const b = branches[i];
+              if (b && b.branchType && b.label) {
+                controller.enqueue(
+                  encoder.encode(JSON.stringify(b) + '\n'),
+                );
+              }
+            }
+            lastCount = branches.length;
+          }
+        }
+      } catch {
+        // Stream aborted or error
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+    },
+  });
 }

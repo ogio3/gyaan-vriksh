@@ -26,28 +26,41 @@ interface BranchData {
   rarity: string;
 }
 
-function extractBranches(text: string): BranchData[] {
-  const branches: BranchData[] = [];
-  // Match complete JSON objects with at least branchType and label (rarity optional)
-  const objectPattern = /\{[^{}]*"branchType"\s*:\s*"[^"]+"\s*[^{}]*\}/g;
-  let objMatch;
-  while ((objMatch = objectPattern.exec(text)) !== null) {
-    try {
-      const obj = JSON.parse(objMatch[0]);
-      if (obj.branchType && obj.label) {
-        branches.push({
-          branchType: obj.branchType,
-          label: obj.label,
-          summary: obj.summary ?? '',
-          bloomLevel: obj.bloomLevel ?? 'understand',
-          rarity: obj.rarity ?? 'N',
-        });
-      }
-    } catch {
-      // Partial JSON, skip
+// Stream NDJSON: read line-by-line, parse each as a complete branch
+async function streamBranches(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onBranch: (branch: BranchData) => void,
+) {
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const obj = JSON.parse(line.trim());
+        if (obj.branchType && obj.label) {
+          onBranch({
+            branchType: obj.branchType, label: obj.label,
+            summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand',
+            rarity: obj.rarity ?? 'N',
+          });
+        }
+      } catch { /* skip */ }
     }
   }
-  return branches;
+  if (buffer.trim()) {
+    try {
+      const obj = JSON.parse(buffer.trim());
+      if (obj.branchType && obj.label) {
+        onBranch({ branchType: obj.branchType, label: obj.label, summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand', rarity: obj.rarity ?? 'N' });
+      }
+    } catch { /* skip */ }
+  }
 }
 
 let nextId = 0;
@@ -162,43 +175,21 @@ function DemoPage() {
       const reader = response.body?.getReader();
       if (!reader) { setPhase('before'); return; }
 
-      const decoder = new TextDecoder();
-      let accumulated = '';
-      let lastCount = 0;
-      const baseId = nextId; // Stable base for this batch
+      const baseId = ++nextId;
+      const collectedChildren: TreeNode[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        const parsed = extractBranches(accumulated);
-        if (parsed.length > lastCount) {
-          lastCount = parsed.length;
-          const children = parsed.map((b, i) => ({
-            id: `b-${baseId}-${i}`, // Stable IDs
-            label: b.label,
-            branchType: b.branchType as TreeNode['branchType'],
-            bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
-            summary: b.summary,
-            rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
-          }));
-          setTree({ ...rootNode, children });
-        }
-      }
-
-      const final = extractBranches(accumulated);
-      nextId += final.length;
-      setTree({
-        ...rootNode,
-        children: final.map((b, i) => ({
-          id: `b-${baseId}-${i}`,
+      await streamBranches(reader, (b) => {
+        collectedChildren.push({
+          id: `b-${baseId}-${collectedChildren.length}`,
           label: b.label,
           branchType: b.branchType as TreeNode['branchType'],
           bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
           summary: b.summary,
           rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
-        })),
+        });
+        setTree({ ...rootNode, children: [...collectedChildren] });
       });
+
       setExpandingId(null);
       setPhase('exploring');
     } catch (e) {
@@ -246,33 +237,24 @@ function DemoPage() {
       const reader = response.body?.getReader();
       if (!reader) { setPhase('exploring'); setExpandingId(null); return; }
 
-      const decoder = new TextDecoder();
-      let accumulated = '';
-      let lastCount = 0;
       const expandBaseId = ++nextId;
+      const expandChildren: TreeNode[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        const parsed = extractBranches(accumulated);
-        if (parsed.length > lastCount) {
-          lastCount = parsed.length;
-          const newChildren = parsed.map((b, i) => ({
-            id: `e-${expandBaseId}-${i}`, // Stable IDs
-            label: b.label,
-            branchType: b.branchType as TreeNode['branchType'],
-            bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
-            summary: b.summary,
-            rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
-          }));
-          setTree((prev) => prev ? addChildrenToNode(
-            removeChildrenFromNode(prev, node.id),
-            node.id,
-            newChildren,
-          ) : prev);
-        }
-      }
+      await streamBranches(reader, (b) => {
+        expandChildren.push({
+          id: `e-${expandBaseId}-${expandChildren.length}`,
+          label: b.label,
+          branchType: b.branchType as TreeNode['branchType'],
+          bloomLevel: b.bloomLevel as TreeNode['bloomLevel'],
+          summary: b.summary,
+          rarity: (b.rarity as TreeNode['rarity']) ?? 'N',
+        });
+        setTree((prev) => prev ? addChildrenToNode(
+          removeChildrenFromNode(prev, node.id),
+          node.id,
+          [...expandChildren],
+        ) : prev);
+      });
 
       setExpandingId(null);
       setPhase('exploring');

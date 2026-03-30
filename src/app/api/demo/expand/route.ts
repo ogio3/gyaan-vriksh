@@ -10,22 +10,12 @@ const branchSchema = z.object({
   branches: z.array(
     z.object({
       branchType: z.enum([
-        'career',
-        'discovery',
-        'connection',
-        'innovation',
-        'mystery',
-        'history',
+        'career', 'discovery', 'connection', 'innovation', 'mystery', 'history',
       ]),
       label: z.string(),
       summary: z.string(),
       bloomLevel: z.enum([
-        'remember',
-        'understand',
-        'apply',
-        'analyze',
-        'evaluate',
-        'create',
+        'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create',
       ]),
       rarity: z.enum(['N', 'R', 'SR', 'SSR']),
     }),
@@ -70,5 +60,36 @@ export async function POST(request: Request) {
     abortSignal: request.signal,
   });
 
-  return result.toTextStreamResponse();
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      let lastCount = 0;
+      try {
+        for await (const partial of result.partialObjectStream) {
+          const branches = partial.branches;
+          if (branches && branches.length > lastCount) {
+            for (let i = lastCount; i < branches.length; i++) {
+              const b = branches[i];
+              if (b && b.branchType && b.label) {
+                controller.enqueue(
+                  encoder.encode(JSON.stringify(b) + '\n'),
+                );
+              }
+            }
+            lastCount = branches.length;
+          }
+        }
+      } catch {
+        // Stream aborted
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+    },
+  });
 }
