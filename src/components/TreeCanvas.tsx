@@ -176,7 +176,13 @@ export default function TreeCanvas({
         id: `${l.source.data.id}-${l.target.data.id}`,
       })),
       svgWidth: Math.max(w, 500),
-      svgHeight: Math.max(h, 400),
+      // Extra 500px below the root for THE MYCELIUM — a hidden underground
+      // network that only appears if you scroll past the root node.
+      // The Three Keys are encoded in the constants of this file.
+      // First Key (Logic): CARD_W=180, CARD_H=252, ratio=63:88
+      // Second Key (Pattern): 85 prompts, 42 decisions — tap root 42 times
+      // Third Key (Heart): the contact is in the mycelium itself
+      svgHeight: Math.max(h, 400) + 500,
     };
   }, [data]);
 
@@ -366,6 +372,85 @@ export default function TreeCanvas({
             <stop offset="100%" stopColor="#ff00ff" />
           </linearGradient>
         </defs>
+
+        {/* ═══════════════════════════════════════════════════════════
+            THE MYCELIUM — Underground hidden stage.
+            Below the root node, in negative space that most users will
+            never scroll to. A network of glowing fungal threads connects
+            nodes of wisdom. Ready Player One: everyone looks up at the
+            branches. Only those who look DOWN find the real treasure.
+            ═══════════════════════════════════════════════════════════ */}
+        {(() => {
+          const rootNode = nodes.find(n => n.depth === 0);
+          if (!rootNode) return null;
+          const groundY = rootNode.y + CARD_H / 2 + 20;
+          const centerX = rootNode.x;
+          // Mycelium threads — bioluminescent curves below the root
+          const threads = [
+            { x1: centerX, y1: groundY, x2: centerX - 120, y2: groundY + 180 },
+            { x1: centerX, y1: groundY, x2: centerX + 90, y2: groundY + 220 },
+            { x1: centerX, y1: groundY, x2: centerX - 60, y2: groundY + 280 },
+            { x1: centerX, y1: groundY, x2: centerX + 140, y2: groundY + 160 },
+            { x1: centerX, y1: groundY, x2: centerX + 20, y2: groundY + 320 },
+            { x1: centerX - 120, y1: groundY + 180, x2: centerX + 90, y2: groundY + 220 },
+            { x1: centerX + 90, y1: groundY + 220, x2: centerX + 20, y2: groundY + 320 },
+          ];
+          return (
+            <g opacity={0.6}>
+              {/* Ground line */}
+              <line x1={centerX - 200} y1={groundY} x2={centerX + 200} y2={groundY}
+                stroke="rgba(120,120,120,0.15)" strokeWidth={1} strokeDasharray="4 8" />
+              {/* Mycelium threads */}
+              {threads.map((t, i) => {
+                const midX = (t.x1 + t.x2) / 2 + (i % 2 === 0 ? 30 : -30);
+                const midY = (t.y1 + t.y2) / 2;
+                return (
+                  <path key={`myc-${i}`}
+                    d={`M ${t.x1} ${t.y1} Q ${midX} ${midY} ${t.x2} ${t.y2}`}
+                    fill="none" stroke="#D4A017" strokeWidth={0.8} opacity={0.3}
+                  >
+                    <animate attributeName="opacity" values="0.1;0.4;0.1"
+                      dur={`${3 + i * 0.7}s`} repeatCount="indefinite" />
+                  </path>
+                );
+              })}
+              {/* Mycelium nodes — wisdom glowing underground */}
+              {[
+                { x: centerX - 120, y: groundY + 180, text: '~85 prompts' },
+                { x: centerX + 90, y: groundY + 220, text: '42 decisions' },
+                { x: centerX - 60, y: groundY + 280, text: '12,427 lines' },
+                { x: centerX + 140, y: groundY + 160, text: '97 files' },
+                { x: centerX + 20, y: groundY + 320, text: 'surpass me' },
+              ].map((node, i) => (
+                <g key={`myc-node-${i}`}>
+                  <circle cx={node.x} cy={node.y} r={4} fill="#D4A017" opacity={0.4}>
+                    <animate attributeName="r" values="3;5;3" dur={`${2.5 + i * 0.5}s`} repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.2;0.6;0.2" dur={`${2.5 + i * 0.5}s`} repeatCount="indefinite" />
+                  </circle>
+                  <text x={node.x} y={node.y + 14} textAnchor="middle"
+                    fontSize={9} fill="#D4A017" opacity={0.5}
+                    style={{ fontFamily: 'monospace', letterSpacing: '0.1em' }}
+                  >
+                    {node.text}
+                  </text>
+                </g>
+              ))}
+              {/* The deepest message */}
+              <text x={centerX} y={groundY + 400} textAnchor="middle"
+                fontSize={11} fill="#D4A017" opacity={0.3}
+                style={{ fontFamily: 'monospace' }}
+              >
+                hi @ ogio.dev
+              </text>
+              <text x={centerX} y={groundY + 420} textAnchor="middle"
+                fontSize={8} fill="#D4A017" opacity={0.2}
+                style={{ fontFamily: 'monospace' }}
+              >
+                the mycelium connects all things
+              </text>
+            </g>
+          );
+        })()}
 
         {/* Hidden Sprouts — nearly invisible 2.5px green dots scattered
             across the canvas. Clicking one triggers a new exploration.
