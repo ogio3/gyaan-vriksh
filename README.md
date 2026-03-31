@@ -71,9 +71,9 @@ A dry textbook paragraph transforms into a knowledge tree with career paths, dee
 | AI | Anthropic Claude Sonnet 4 (Vercel AI SDK, streaming) |
 | Database | Supabase (PostgreSQL + Auth + RLS) |
 | Styling | Tailwind CSS 4 |
-| Animation | Framer Motion |
+| Animation | Motion |
 | Tree Layout | d3-hierarchy (bottom-to-top) |
-| i18n | next-intl (English, Hindi, Punjabi, Japanese) |
+| i18n | next-intl (English, Hindi, Punjabi, Japanese) — locale-based routing works; UI string translation is in progress (interface currently displays in English regardless of locale) |
 | Offline | Serwist (Service Worker + IndexedDB) |
 | Schema | Zod 4 (AI structured output validation) |
 

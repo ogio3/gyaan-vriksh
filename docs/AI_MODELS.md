@@ -5,7 +5,7 @@ Article 10 — EU AI Act Regulation 2024/1689
 ## Claude Sonnet 4 (Primary)
 
 - **Provider**: Anthropic
-- **Model ID**: claude-sonnet-4-20250514
+- **Model ID**: claude-sonnet-4-6-20260217
 - **Training data**: Proprietary (see Anthropic's model card)
 - **Our usage**: API only, zero-retention agreement
 - **Bias considerations**: English-centric training may produce lower quality for Hindi/Arabic/Japanese
