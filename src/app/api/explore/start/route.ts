@@ -64,8 +64,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const ageBracket =
-    (user.user_metadata?.age_bracket as AgeBracket) ?? '13_15';
+  const validBrackets: AgeBracket[] = ['under_10', '10_12', '13_15', '16_17', 'adult'];
+  const rawBracket = user.user_metadata?.age_bracket as string | undefined;
+  const ageBracket: AgeBracket = validBrackets.includes(rawBracket as AgeBracket)
+    ? (rawBracket as AgeBracket)
+    : '13_15';
 
   // Check daily limit
   const serviceClient = await createServiceClient();
@@ -180,52 +183,50 @@ export async function POST(request: Request) {
       }
       controller.close();
 
-      // Persist branches to DB (fire-and-forget, don't block stream)
+      // Persist branches to DB after stream completes
       if (collectedBranches.length > 0) {
-        const branchRows = collectedBranches.map((b) => ({
-          session_id: session.id,
-          parent_branch_id: null,
-          branch_type: b.branchType,
-          label: b.label,
-          summary: b.summary,
-          bloom_level: b.bloomLevel,
-          depth: 0,
-          is_expanded: false,
-        }));
+        try {
+          const branchRows = collectedBranches.map((b) => ({
+            session_id: session.id,
+            parent_branch_id: null,
+            branch_type: b.branchType,
+            label: b.label,
+            summary: b.summary,
+            bloom_level: b.bloomLevel,
+            depth: 0,
+            is_expanded: false,
+          }));
 
-        await supabase.from('exploration_branches').insert(branchRows);
+          const { error: insertErr } = await supabase.from('exploration_branches').insert(branchRows);
+          if (insertErr) console.error('[explore/start] Branch insert failed:', insertErr.message);
 
-        // Find highest bloom level reached
-        const bloomOrder = [
-          'remember',
-          'understand',
-          'apply',
-          'analyze',
-          'evaluate',
-          'create',
-        ];
-        const maxBloom = collectedBranches.reduce((max, b) => {
-          const idx = bloomOrder.indexOf(b.bloomLevel);
-          const maxIdx = bloomOrder.indexOf(max);
-          return idx > maxIdx ? b.bloomLevel : max;
-        }, 'remember');
+          const bloomOrder = [
+            'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create',
+          ];
+          const maxBloom = collectedBranches.reduce((max, b) => {
+            const idx = bloomOrder.indexOf(b.bloomLevel);
+            const maxIdx = bloomOrder.indexOf(max);
+            return idx > maxIdx ? b.bloomLevel : max;
+          }, 'remember');
 
-        // Generate subject label from first branch
-        const subjectLabel =
-          collectedBranches[0]?.label?.slice(0, 100) ?? null;
+          const subjectLabel =
+            collectedBranches[0]?.label?.slice(0, 100) ?? null;
 
-        // Update session analytics
-        await supabase
-          .from('exploration_sessions')
-          .update({
-            subject_label: subjectLabel,
-            bloom_level_reached: maxBloom,
-            branch_count: collectedBranches.length,
-            max_depth_reached: 0,
-            status: 'completed',
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', session.id);
+          const { error: updateErr } = await supabase
+            .from('exploration_sessions')
+            .update({
+              subject_label: subjectLabel,
+              bloom_level_reached: maxBloom,
+              branch_count: collectedBranches.length,
+              max_depth_reached: 0,
+              status: 'completed',
+              completed_at: new Date().toISOString(),
+            })
+            .eq('id', session.id);
+          if (updateErr) console.error('[explore/start] Session update failed:', updateErr.message);
+        } catch (dbErr) {
+          console.error('[explore/start] DB persistence failed:', dbErr);
+        }
       }
     },
   });

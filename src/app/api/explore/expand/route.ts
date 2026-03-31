@@ -80,8 +80,11 @@ export async function POST(request: Request) {
   const currentDepth = (parentBranch?.depth ?? 0) + 1;
 
   // Check depth limit by age bracket
-  const ageBracket =
-    (user.user_metadata?.age_bracket as AgeBracket) ?? '13_15';
+  const validBrackets: AgeBracket[] = ['under_10', '10_12', '13_15', '16_17', 'adult'];
+  const rawBracket = user.user_metadata?.age_bracket as string | undefined;
+  const ageBracket: AgeBracket = validBrackets.includes(rawBracket as AgeBracket)
+    ? (rawBracket as AgeBracket)
+    : '13_15';
   const tier = getContentTier(ageBracket);
 
   if (tier && tier.maxDepth !== -1 && currentDepth > tier.maxDepth) {
@@ -153,70 +156,65 @@ export async function POST(request: Request) {
 
       // Persist child branches
       if (collectedBranches.length > 0) {
-        const branchRows = collectedBranches.map((b) => ({
-          session_id: sessionId,
-          parent_branch_id: branchId,
-          branch_type: b.branchType,
-          label: b.label,
-          summary: b.summary,
-          bloom_level: b.bloomLevel,
-          depth: currentDepth,
-          is_expanded: false,
-        }));
+        try {
+          const branchRows = collectedBranches.map((b) => ({
+            session_id: sessionId,
+            parent_branch_id: branchId,
+            branch_type: b.branchType,
+            label: b.label,
+            summary: b.summary,
+            bloom_level: b.bloomLevel,
+            depth: currentDepth,
+            is_expanded: false,
+          }));
 
-        await supabase.from('exploration_branches').insert(branchRows);
+          const { error: insertErr } = await supabase.from('exploration_branches').insert(branchRows);
+          if (insertErr) console.error('[explore/expand] Branch insert failed:', insertErr.message);
 
-        // Mark parent branch as expanded
-        await supabase
-          .from('exploration_branches')
-          .update({ is_expanded: true })
-          .eq('id', branchId);
+          const { error: expandErr } = await supabase
+            .from('exploration_branches')
+            .update({ is_expanded: true })
+            .eq('id', branchId);
+          if (expandErr) console.error('[explore/expand] Parent expand failed:', expandErr.message);
 
-        // Update session stats directly
-        const bloomOrder = [
-          'remember',
-          'understand',
-          'apply',
-          'analyze',
-          'evaluate',
-          'create',
-        ];
-        const maxBloom = collectedBranches.reduce((max, b) => {
-          const idx = bloomOrder.indexOf(b.bloomLevel);
-          const maxIdx = bloomOrder.indexOf(max);
-          return idx > maxIdx ? b.bloomLevel : max;
-        }, 'remember');
+          const bloomOrder = [
+            'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create',
+          ];
+          const maxBloom = collectedBranches.reduce((max, b) => {
+            const idx = bloomOrder.indexOf(b.bloomLevel);
+            const maxIdx = bloomOrder.indexOf(max);
+            return idx > maxIdx ? b.bloomLevel : max;
+          }, 'remember');
 
-        const { data: currentSession } = await supabase
-          .from('exploration_sessions')
-          .select('max_depth_reached, branch_count')
-          .eq('id', sessionId)
-          .single();
-
-        const updates: Record<string, unknown> = {};
-        if (
-          currentSession &&
-          currentDepth > (currentSession.max_depth_reached ?? 0)
-        ) {
-          updates.max_depth_reached = currentDepth;
-        }
-        if (currentSession) {
-          updates.branch_count =
-            (currentSession.branch_count ?? 0) + collectedBranches.length;
-        }
-        // Update bloom level if higher
-        const currentBloomIdx = bloomOrder.indexOf(
-          (currentSession as Record<string, unknown>)?.bloom_level_reached as string ?? 'remember',
-        );
-        const newBloomIdx = bloomOrder.indexOf(maxBloom);
-        if (newBloomIdx > currentBloomIdx) {
-          updates.bloom_level_reached = maxBloom;
-        }
-        if (Object.keys(updates).length > 0) {
-          await supabase
+          const { data: currentSession } = await supabase
             .from('exploration_sessions')
-            .update(updates)
-            .eq('id', sessionId);
+            .select('max_depth_reached, branch_count, bloom_level_reached')
+            .eq('id', sessionId)
+            .single();
+
+          if (currentSession) {
+            const updates: Record<string, unknown> = {};
+            if (currentDepth > (currentSession.max_depth_reached ?? 0)) {
+              updates.max_depth_reached = currentDepth;
+            }
+            updates.branch_count =
+              (currentSession.branch_count ?? 0) + collectedBranches.length;
+            const currentBloomIdx = bloomOrder.indexOf(
+              (currentSession.bloom_level_reached as string) ?? 'remember',
+            );
+            if (bloomOrder.indexOf(maxBloom) > currentBloomIdx) {
+              updates.bloom_level_reached = maxBloom;
+            }
+            if (Object.keys(updates).length > 0) {
+              const { error: updateErr } = await supabase
+                .from('exploration_sessions')
+                .update(updates)
+                .eq('id', sessionId);
+              if (updateErr) console.error('[explore/expand] Session update failed:', updateErr.message);
+            }
+          }
+        } catch (dbErr) {
+          console.error('[explore/expand] DB persistence failed:', dbErr);
         }
       }
     },
