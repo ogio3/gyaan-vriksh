@@ -64,7 +64,7 @@ how we control quality.
 
 ```typescript
 const result = streamObject({
-  model: anthropic('claude-sonnet-4-6-20260217'),
+  model: anthropic('claude-sonnet-4-6'),
   schema: branchSchema,  // ← Zod schema validates output structure
   system: systemPrompt,
   prompt: `Analyze this passage...\n\n${sanitizedText}`,

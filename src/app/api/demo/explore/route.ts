@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   });
 
   const result = streamObject({
-    model: anthropic('claude-sonnet-4-6-20260217'),
+    model: anthropic('claude-sonnet-4-6'),
     schema: branchSchema,
     system: systemPrompt,
     prompt: `Analyze the following textbook passage and generate exploration branches:\n\n${inputResult.sanitizedText}`,

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   try {
     const result = streamText({
-      model: anthropic("claude-sonnet-4-6-20260217"),
+      model: anthropic("claude-sonnet-4-6"),
       messages: [
         {
           role: "system",
