@@ -97,8 +97,11 @@ export async function POST(request: Request) {
             lastCount = branches.length;
           }
         }
-      } catch {
-        // Stream aborted by client navigation or timeout — not an error
+      } catch (err) {
+        if (!(err instanceof Error && err.name === 'AbortError')) {
+          console.error('[demo/expand] Stream generation failed:', err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: 'generation_failed' }) + '\n'));
+        }
       }
       controller.close();
     },

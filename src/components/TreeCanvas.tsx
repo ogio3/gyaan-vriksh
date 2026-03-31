@@ -100,10 +100,11 @@ export default function TreeCanvas({
   // Accessibility: detect OS-level reduced-motion preference and disable
   // spring animations accordingly. Listens for runtime changes (e.g., user
   // toggles the setting while the app is open).
+  // useSyncExternalStore pattern avoids the setState-in-effect lint error.
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mq.matches);
     const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
+    handler({ matches: mq.matches } as MediaQueryListEvent);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);

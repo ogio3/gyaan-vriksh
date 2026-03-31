@@ -172,8 +172,11 @@ export async function POST(request: Request) {
             lastCount = branches.length;
           }
         }
-      } catch {
-        // Stream aborted or error
+      } catch (err) {
+        if (!(err instanceof Error && err.name === 'AbortError')) {
+          console.error('[explore/start] Stream generation failed:', err);
+          controller.enqueue(encoder.encode(JSON.stringify({ error: 'generation_failed' }) + '\n'));
+        }
       }
       controller.close();
 

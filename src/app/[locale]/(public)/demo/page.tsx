@@ -24,18 +24,9 @@
 
 import { useState, useCallback, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import TreeCanvas from '@/components/TreeCanvas';
 import type { TreeNode } from '@/types/tree';
-
-// These passages are pre-loaded answers for the hidden sprout Easter eggs.
-// They match the SPROUT_PASSAGES in TreeCanvas.tsx.
-const HIDDEN_PASSAGES = [
-  'Why do we dream? Scientists believe dreams help consolidate memories and simulate scenarios.',
-  'How do languages die? When the last speaker passes, an entire worldview vanishes.',
-  'What makes music emotional? Sound waves trigger the same brain regions as food and love.',
-  'Why is the sky dark at night? This simple question puzzled astronomers for centuries.',
-  'Can plants communicate? Trees share nutrients through underground fungal networks.',
-];
 
 // Default passage shown in the typewriter animation. Chosen because
 // photosynthesis is universally taught, culturally neutral, and branches
@@ -75,6 +66,9 @@ async function streamBranches(
       if (!line.trim()) continue;
       try {
         const obj = JSON.parse(line.trim());
+        if (obj.error) {
+          throw new Error(obj.error);
+        }
         if (obj.branchType && obj.label) {
           onBranch({
             branchType: obj.branchType, label: obj.label,
@@ -82,16 +76,22 @@ async function streamBranches(
             rarity: obj.rarity ?? 'N',
           });
         }
-      } catch { /* skip */ }
+      } catch (e) {
+        if (e instanceof Error && e.message === 'generation_failed') throw e;
+        /* skip partial JSON */
+      }
     }
   }
   if (buffer.trim()) {
     try {
       const obj = JSON.parse(buffer.trim());
+      if (obj.error) throw new Error(obj.error);
       if (obj.branchType && obj.label) {
         onBranch({ branchType: obj.branchType, label: obj.label, summary: obj.summary ?? '', bloomLevel: obj.bloomLevel ?? 'understand', rarity: obj.rarity ?? 'N' });
       }
-    } catch { /* skip */ }
+    } catch (e) {
+      if (e instanceof Error && e.message === 'generation_failed') throw e;
+    }
   }
 }
 
@@ -100,10 +100,6 @@ async function streamBranches(
 // instead of useRef because genId is called outside the component in
 // stream callbacks.
 let nextId = 0;
-function genId() {
-  return `n-${++nextId}`;
-}
-
 // Immutably append children to a specific node in the tree.
 // Returns a new tree object (required for React state updates to trigger
 // re-render). Uses recursive descent because tree depth is bounded by
@@ -247,8 +243,9 @@ function DemoPage() {
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
         setError('Connection error.');
-        setPhase('before');
       }
+      setPhase('before');
+      setTree(null);
     }
   }, []);
 
@@ -319,9 +316,10 @@ function DemoPage() {
       setPhase('exploring');
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
-        setExpandingId(null);
-        setPhase('exploring');
+        setError('Connection error. Try clicking again.');
       }
+      setExpandingId(null);
+      setPhase('exploring');
     }
   }, [phase, tree]);
 
@@ -372,12 +370,12 @@ function DemoPage() {
             >
               Try your own passage
             </button>
-            <a
+            <Link
               href="/sign-up"
               className="rounded-full bg-[#2D5BFF] px-4 py-1.5 text-xs font-medium text-white"
             >
               Sign up free
-            </a>
+            </Link>
           </div>
         </div>
       </div>

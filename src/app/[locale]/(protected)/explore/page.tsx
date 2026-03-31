@@ -178,9 +178,9 @@ export default function ExplorePage() {
     } catch (e) {
       if ((e as Error).name !== 'AbortError') {
         setError('Connection error. Please try again.');
-        setPhase('input');
-        setTree(null);
       }
+      setPhase('input');
+      setTree(null);
     }
   }, [passage]);
 
@@ -255,12 +255,13 @@ export default function ExplorePage() {
         setPhase('exploring');
       } catch (e) {
         if ((e as Error).name !== 'AbortError') {
-          setExpandingId(null);
-          setPhase('exploring');
+          setError('Connection error. Try clicking again.');
         }
+        setExpandingId(null);
+        setPhase('exploring');
       }
     },
-    [phase, tree, sessionId],
+    [phase, sessionId],
   );
 
   // ── INPUT PHASE ──
