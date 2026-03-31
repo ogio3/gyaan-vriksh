@@ -6,10 +6,10 @@ import type { UserRole } from '@/types/database';
 async function AuthGate({ children }: { children: React.ReactNode }) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  // Demo mode (no Supabase): show as teacher for full dashboard access
+  // Demo mode (no Supabase): show with role switcher
   if (!supabaseUrl) {
     return (
-      <AppShell role="teacher" displayName="Demo">
+      <AppShell role="teacher" displayName="Demo" isDemo>
         {children}
       </AppShell>
     );
@@ -18,9 +18,9 @@ async function AuthGate({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
 
   if (!profile) {
-    // Not authenticated but Supabase is configured — show as guest
+    // Not authenticated — show as demo/guest with role switcher
     return (
-      <AppShell role="teacher" displayName="Guest">
+      <AppShell role="teacher" displayName="Demo" isDemo>
         {children}
       </AppShell>
     );

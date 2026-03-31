@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import type { UserRole } from '@/types/database';
 
 interface NavItem {
@@ -24,16 +25,25 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   admin: [{ href: '/dashboard', label: 'Dashboard' }],
 };
 
+const DEMO_ROLES: { role: UserRole; label: string }[] = [
+  { role: 'student', label: 'Student' },
+  { role: 'teacher', label: 'Teacher' },
+  { role: 'parent', label: 'Parent' },
+];
+
 interface AppShellProps {
   children: React.ReactNode;
   role: UserRole;
   displayName: string;
+  isDemo?: boolean;
 }
 
-export function AppShell({ children, role, displayName }: AppShellProps) {
+export function AppShell({ children, role: initialRole, displayName, isDemo }: AppShellProps) {
   const pathname = usePathname();
+  const [demoRole, setDemoRole] = useState<UserRole>(initialRole);
 
-  const navItems = NAV_ITEMS[role] ?? [];
+  const activeRole = isDemo ? demoRole : initialRole;
+  const navItems = NAV_ITEMS[activeRole] ?? [];
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -65,17 +75,40 @@ export function AppShell({ children, role, displayName }: AppShellProps) {
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">
-            {displayName}
-          </span>
-          <form action="/api/auth/sign-out" method="POST">
-            <button
-              type="submit"
-              className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-            >
-              Sign out
-            </button>
-          </form>
+          {isDemo ? (
+            <>
+              <div className="flex items-center gap-1 rounded-full border border-zinc-200 dark:border-zinc-700 p-0.5">
+                {DEMO_ROLES.map(({ role, label }) => (
+                  <button
+                    key={role}
+                    onClick={() => setDemoRole(role)}
+                    className={`rounded-full px-3 py-1 text-xs transition-colors ${
+                      activeRole === role
+                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                        : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs text-amber-500">Demo</span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                {displayName}
+              </span>
+              <form action="/api/auth/sign-out" method="POST">
+                <button
+                  type="submit"
+                  className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </header>
 

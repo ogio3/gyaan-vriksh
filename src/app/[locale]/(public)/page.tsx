@@ -327,6 +327,26 @@ export default function HomePage() {
           </span>
         </Link>
 
+        <div className="flex w-full flex-col items-center gap-2">
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+            Or explore the full platform
+          </span>
+          <div className="flex gap-3">
+            <Link
+              href="/dashboard"
+              className="rounded-md border border-zinc-200 px-4 py-2 text-xs text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500"
+            >
+              Teacher Dashboard
+            </Link>
+            <Link
+              href="/parent"
+              className="rounded-md border border-zinc-200 px-4 py-2 text-xs text-zinc-600 hover:border-zinc-400 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500"
+            >
+              Parent View
+            </Link>
+          </div>
+        </div>
+
         <div className="flex gap-6 text-xs text-zinc-400 dark:text-zinc-500">
           <Link href="/sign-in" className="hover:text-zinc-600 dark:hover:text-zinc-300">
             Sign in

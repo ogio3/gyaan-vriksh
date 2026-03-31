@@ -23,16 +23,53 @@ interface DashboardData {
   pendingReports: number;
 }
 
+const DEMO_DATA: DashboardData = {
+  classes: [
+    {
+      id: 'demo-1',
+      name: 'Grade 8 Science',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      class_memberships: [{ count: 24 }],
+    },
+    {
+      id: 'demo-2',
+      name: 'Grade 9 Mathematics',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      class_memberships: [{ count: 18 }],
+    },
+  ],
+  recentSessions: [
+    { id: 's1', subject_label: 'Photosynthesis and Energy', status: 'completed', bloom_level_reached: 'analyze', created_at: new Date(Date.now() - 86400000).toISOString() },
+    { id: 's2', subject_label: 'The Water Cycle', status: 'completed', bloom_level_reached: 'understand', created_at: new Date(Date.now() - 172800000).toISOString() },
+    { id: 's3', subject_label: 'Ancient Mathematics', status: 'completed', bloom_level_reached: 'evaluate', created_at: new Date(Date.now() - 259200000).toISOString() },
+  ],
+  totalExplorations: 142,
+  pendingReports: 2,
+};
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
   const [showCreateClass, setShowCreateClass] = useState(false);
   const [newClassName, setNewClassName] = useState('');
 
   useEffect(() => {
     fetch('/api/dashboard/overview')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          setIsDemo(true);
+          return DEMO_DATA;
+        }
+        return r.json();
+      })
       .then(setData)
+      .catch(() => {
+        setIsDemo(true);
+        setData(DEMO_DATA);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -66,7 +103,14 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          {isDemo && (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+              Demo
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setShowCreateClass(true)}
           className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"

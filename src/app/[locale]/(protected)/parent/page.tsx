@@ -23,6 +23,19 @@ export default function ParentPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  async function grantConsent(childId: string) {
+    const response = await fetch('/api/parent/consent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ childId, consentMethod: 'kba' }),
+    });
+    if (response.ok) {
+      // Refresh the children list
+      const updated = await fetch('/api/parent/children').then((r) => r.json());
+      setChildren(updated);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -68,6 +81,18 @@ export default function ParentPage() {
               <p className="mt-1 text-xs text-zinc-400">
                 Consent: {child.consent_status}
               </p>
+              {child.consent_status === 'pending' && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    grantConsent(child.child_id);
+                  }}
+                  className="mt-2 rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
+                >
+                  Grant Consent
+                </button>
+              )}
               <p className="mt-2 text-xs text-blue-600 dark:text-blue-400">
                 Manage settings &rarr;
               </p>

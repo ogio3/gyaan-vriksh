@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 type Step = 'code' | 'age' | 'name';
 type AgeBracket = 'under_10' | '10_12' | '13_15' | '16_17';
@@ -78,6 +79,19 @@ export default function JoinPage() {
       if (!response.ok) {
         setError(data.error ?? 'Failed to join. Please try again.');
         return;
+      }
+
+      // Verify the token to establish a session
+      if (data.token_hash) {
+        const supabase = createClient();
+        const { error: verifyError } = await supabase.auth.verifyOtp({
+          token_hash: data.token_hash,
+          type: data.type ?? 'magiclink',
+        });
+        if (verifyError) {
+          setError('Session creation failed. Please try again.');
+          return;
+        }
       }
 
       router.push('/explore');

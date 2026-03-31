@@ -1,3 +1,87 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
+interface Engineer {
+  display_name: string;
+  bloom_level_reached: string;
+  exploration_count: number;
+}
+
+const DEMO_ENGINEERS: Engineer[] = [
+  { display_name: 'Curious Cat', bloom_level_reached: 'create', exploration_count: 12 },
+  { display_name: 'Code Explorer', bloom_level_reached: 'evaluate', exploration_count: 8 },
+];
+
+function EngineersSection() {
+  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/dashboard/engineers')
+      .then((r) => {
+        if (!r.ok) {
+          setIsDemo(true);
+          setEngineers(DEMO_ENGINEERS);
+          return null;
+        }
+        return r.json();
+      })
+      .then((data) => {
+        if (data) setEngineers(data);
+      })
+      .catch(() => {
+        setIsDemo(true);
+        setEngineers(DEMO_ENGINEERS);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="rounded-lg border border-zinc-700 p-4">
+        <div className="h-24 animate-pulse rounded bg-zinc-800" />
+      </section>
+    );
+  }
+
+  if (engineers.length === 0) {
+    return (
+      <section className="rounded-lg border border-zinc-700 p-4">
+        <p className="text-center text-sm text-zinc-500 py-8">
+          No engineers discovered yet.
+        </p>
+        <p className="text-center text-xs text-zinc-600">
+          When students find the hidden seeds and explore the source
+          code, they will appear here.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-lg border border-zinc-700 p-4 space-y-3">
+      {isDemo && (
+        <p className="text-xs text-amber-500">Sample data — connect Supabase for real tracking</p>
+      )}
+      {engineers.map((eng, i) => (
+        <div key={i} className="flex items-center justify-between rounded-md border border-zinc-700 p-3">
+          <div>
+            <p className="font-medium text-emerald-400">{eng.display_name}</p>
+            <p className="text-xs text-zinc-500">
+              {eng.exploration_count} explorations
+            </p>
+          </div>
+          <span className="rounded bg-emerald-900 px-2 py-1 text-xs text-emerald-300">
+            {eng.bloom_level_reached}
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function EngineersPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8 p-6">
@@ -32,16 +116,7 @@ export default function EngineersPage() {
         </p>
       </section>
 
-      <section className="rounded-lg border border-zinc-700 p-4">
-        <p className="text-center text-sm text-zinc-500 py-8">
-          No engineers discovered yet.
-        </p>
-        <p className="text-center text-xs text-zinc-600">
-          When students find the hidden seeds and explore the source
-          code, they will appear here. This feature requires the full
-          platform with Supabase.
-        </p>
-      </section>
+      <EngineersSection />
 
       <section className="rounded-lg border border-amber-800/30 bg-amber-950/10 p-4 space-y-2">
         <p className="text-sm text-amber-400/80">
