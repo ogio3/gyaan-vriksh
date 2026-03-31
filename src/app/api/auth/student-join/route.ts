@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Generate a session for the student
+  // Sign in as the newly created student by generating a session directly
   const { data: sessionData, error: sessionError } =
     await supabase.auth.admin.generateLink({
       type: 'magiclink',
@@ -123,9 +123,16 @@ export async function POST(request: Request) {
     );
   }
 
+  // Extract the token from the action link and return it for client-side verification
+  const actionLink = sessionData.properties?.action_link;
+  const url = actionLink ? new URL(actionLink) : null;
+  const token_hash = url?.searchParams.get('token_hash') ?? null;
+  const type = url?.searchParams.get('type') ?? 'magiclink';
+
   return NextResponse.json({
     userId: authData.user.id,
     className: classData.name,
-    token: sessionData.properties?.hashed_token,
+    token_hash,
+    type,
   });
 }

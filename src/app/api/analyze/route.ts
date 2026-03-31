@@ -1,5 +1,6 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { streamText } from "ai";
+import { headers } from "next/headers";
 import { isAuthenticated } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -16,11 +17,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Session-level rate limit: 20 requests per day
-  const sessionCookie =
-    request.headers.get("cookie")?.match(/gyaan-vriksh-session=([^;]+)/)?.[1] ??
-    "anonymous";
-  const dailyKey = `analyze:${sessionCookie}:${new Date().toISOString().slice(0, 10)}`;
+  // IP-based rate limit: 20 requests per day
+  const headersList = await headers();
+  const clientIp = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anonymous";
+  const dailyKey = `analyze:${clientIp}:${new Date().toISOString().slice(0, 10)}`;
   const { success } = rateLimit(dailyKey, 20, 86_400_000);
   if (!success) {
     return Response.json(

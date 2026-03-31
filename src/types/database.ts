@@ -4,7 +4,13 @@
 export type UserRole = 'student' | 'teacher' | 'parent' | 'admin';
 export type AgeBracket = 'under_10' | '10_12' | '13_15' | '16_17' | 'adult';
 export type ExplorationStatus = 'active' | 'completed' | 'abandoned';
-export type BranchType = 'career' | 'discovery' | 'connection' | 'innovation' | 'mystery' | 'history';
+// Demo API uses creative names (discovery, innovation, mystery, history)
+// Full platform API uses academic names (deeper_topic, application, question)
+// Both sets are valid — demo data never hits the DB
+export type BranchType =
+  | 'career' | 'connection'                                    // shared
+  | 'discovery' | 'innovation' | 'mystery' | 'history'         // demo
+  | 'deeper_topic' | 'application' | 'question';               // full platform (DB enum)
 export type BloomLevel = 'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';
 export type ContentReportType = 'age_inappropriate' | 'incorrect' | 'uncomfortable' | 'other';
 export type ReportPriority = 'high' | 'medium' | 'low';

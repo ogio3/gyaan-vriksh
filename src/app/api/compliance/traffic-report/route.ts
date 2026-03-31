@@ -4,8 +4,16 @@ import { NextResponse } from 'next/server';
 // Returns domain info, expected traffic patterns, content categories
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
+  const expectedToken = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!expectedToken) {
+    return NextResponse.json(
+      { error: 'Traffic report endpoint not configured.' },
+      { status: 503 },
+    );
+  }
+
+  if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

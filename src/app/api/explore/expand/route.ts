@@ -104,10 +104,121 @@ export async function POST(request: Request) {
     abortSignal: request.signal,
   });
 
-  return result.toTextStreamResponse({
+  // Stream as NDJSON + persist branches
+  const encoder = new TextEncoder();
+  const collectedBranches: Array<{
+    branchType: string;
+    label: string;
+    summary: string;
+    bloomLevel: string;
+  }> = [];
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let lastCount = 0;
+      try {
+        for await (const partial of result.partialObjectStream) {
+          const branches = partial.branches;
+          if (branches && branches.length > lastCount) {
+            for (let i = lastCount; i < branches.length; i++) {
+              const b = branches[i];
+              if (b && b.branchType && b.label) {
+                controller.enqueue(
+                  encoder.encode(JSON.stringify(b) + '\n'),
+                );
+                collectedBranches.push({
+                  branchType: b.branchType,
+                  label: b.label,
+                  summary: b.summary ?? '',
+                  bloomLevel: b.bloomLevel ?? 'understand',
+                });
+              }
+            }
+            lastCount = branches.length;
+          }
+        }
+      } catch {
+        // Stream aborted
+      }
+      controller.close();
+
+      // Persist child branches
+      if (collectedBranches.length > 0) {
+        const branchRows = collectedBranches.map((b) => ({
+          session_id: sessionId,
+          parent_branch_id: branchId,
+          branch_type: b.branchType,
+          label: b.label,
+          summary: b.summary,
+          bloom_level: b.bloomLevel,
+          depth: currentDepth,
+          is_expanded: false,
+        }));
+
+        await supabase.from('exploration_branches').insert(branchRows);
+
+        // Mark parent branch as expanded
+        await supabase
+          .from('exploration_branches')
+          .update({ is_expanded: true })
+          .eq('id', branchId);
+
+        // Update session stats directly
+        const bloomOrder = [
+          'remember',
+          'understand',
+          'apply',
+          'analyze',
+          'evaluate',
+          'create',
+        ];
+        const maxBloom = collectedBranches.reduce((max, b) => {
+          const idx = bloomOrder.indexOf(b.bloomLevel);
+          const maxIdx = bloomOrder.indexOf(max);
+          return idx > maxIdx ? b.bloomLevel : max;
+        }, 'remember');
+
+        const { data: currentSession } = await supabase
+          .from('exploration_sessions')
+          .select('max_depth_reached, branch_count')
+          .eq('id', sessionId)
+          .single();
+
+        const updates: Record<string, unknown> = {};
+        if (
+          currentSession &&
+          currentDepth > (currentSession.max_depth_reached ?? 0)
+        ) {
+          updates.max_depth_reached = currentDepth;
+        }
+        if (currentSession) {
+          updates.branch_count =
+            (currentSession.branch_count ?? 0) + collectedBranches.length;
+        }
+        // Update bloom level if higher
+        const currentBloomIdx = bloomOrder.indexOf(
+          (currentSession as Record<string, unknown>)?.bloom_level_reached as string ?? 'remember',
+        );
+        const newBloomIdx = bloomOrder.indexOf(maxBloom);
+        if (newBloomIdx > currentBloomIdx) {
+          updates.bloom_level_reached = maxBloom;
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase
+            .from('exploration_sessions')
+            .update(updates)
+            .eq('id', sessionId);
+        }
+      }
+    },
+  });
+
+  return new Response(stream, {
     headers: {
-      'X-Session-Id': sessionId,
-      'X-Parent-Branch-Id': branchId,
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
+      'X-Session-Id': sessionId!,
+      'X-Parent-Branch-Id': branchId!,
       'X-Depth': String(currentDepth),
     },
   });

@@ -131,10 +131,13 @@ export async function generateComplianceReport(
       avg_response_time_hours: Math.round(avgResponseHours * 10) / 10,
     },
     safety_metrics: {
-      input_blocks: 0, // Tracked in application logs, not DB
-      output_blocks: 0,
-      pii_detections: 0,
-      perspective_api_flags: 0,
+      // Safety events are enforced at the API layer (input-filter, output-filter, perspective).
+      // These counters require a dedicated safety_events table for accurate tracking.
+      // -1 indicates "not yet tracked" rather than "zero events occurred".
+      input_blocks: -1,
+      output_blocks: -1,
+      pii_detections: -1,
+      perspective_api_flags: -1,
     },
     data_retention: {
       parent_deletion_requests: deletionRequests ?? 0,

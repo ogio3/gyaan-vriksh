@@ -139,9 +139,98 @@ export async function POST(request: Request) {
     abortSignal: request.signal,
   });
 
-  // Return the session ID + streamed branches
-  return result.toTextStreamResponse({
+  // Stream as NDJSON (same pattern as demo) + persist branches to DB
+  const encoder = new TextEncoder();
+  const collectedBranches: Array<{
+    branchType: string;
+    label: string;
+    summary: string;
+    bloomLevel: string;
+  }> = [];
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      let lastCount = 0;
+      try {
+        for await (const partial of result.partialObjectStream) {
+          const branches = partial.branches;
+          if (branches && branches.length > lastCount) {
+            for (let i = lastCount; i < branches.length; i++) {
+              const b = branches[i];
+              if (b && b.branchType && b.label) {
+                controller.enqueue(
+                  encoder.encode(JSON.stringify(b) + '\n'),
+                );
+                collectedBranches.push({
+                  branchType: b.branchType,
+                  label: b.label,
+                  summary: b.summary ?? '',
+                  bloomLevel: b.bloomLevel ?? 'understand',
+                });
+              }
+            }
+            lastCount = branches.length;
+          }
+        }
+      } catch {
+        // Stream aborted or error
+      }
+      controller.close();
+
+      // Persist branches to DB (fire-and-forget, don't block stream)
+      if (collectedBranches.length > 0) {
+        const branchRows = collectedBranches.map((b) => ({
+          session_id: session.id,
+          parent_branch_id: null,
+          branch_type: b.branchType,
+          label: b.label,
+          summary: b.summary,
+          bloom_level: b.bloomLevel,
+          depth: 0,
+          is_expanded: false,
+        }));
+
+        await supabase.from('exploration_branches').insert(branchRows);
+
+        // Find highest bloom level reached
+        const bloomOrder = [
+          'remember',
+          'understand',
+          'apply',
+          'analyze',
+          'evaluate',
+          'create',
+        ];
+        const maxBloom = collectedBranches.reduce((max, b) => {
+          const idx = bloomOrder.indexOf(b.bloomLevel);
+          const maxIdx = bloomOrder.indexOf(max);
+          return idx > maxIdx ? b.bloomLevel : max;
+        }, 'remember');
+
+        // Generate subject label from first branch
+        const subjectLabel =
+          collectedBranches[0]?.label?.slice(0, 100) ?? null;
+
+        // Update session analytics
+        await supabase
+          .from('exploration_sessions')
+          .update({
+            subject_label: subjectLabel,
+            bloom_level_reached: maxBloom,
+            branch_count: collectedBranches.length,
+            max_depth_reached: 0,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', session.id);
+      }
+    },
+  });
+
+  return new Response(stream, {
     headers: {
+      'Content-Type': 'application/x-ndjson',
+      'Cache-Control': 'no-cache',
       'X-Session-Id': session.id,
     },
   });
