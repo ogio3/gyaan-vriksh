@@ -23,16 +23,25 @@ export default function ParentPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const [consentError, setConsentError] = useState('');
+
   async function grantConsent(childId: string) {
-    const response = await fetch('/api/parent/consent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ childId, consentMethod: 'kba' }),
-    });
-    if (response.ok) {
-      // Refresh the children list
+    setConsentError('');
+    try {
+      const response = await fetch('/api/parent/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ childId, consentMethod: 'kba' }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setConsentError(data.error ?? 'Failed to grant consent. Please try again.');
+        return;
+      }
       const updated = await fetch('/api/parent/children').then((r) => r.json());
       setChildren(updated);
+    } catch {
+      setConsentError('Connection error. Please try again.');
     }
   }
 
@@ -55,6 +64,12 @@ export default function ParentPage() {
           Link another child
         </Link>
       </div>
+
+      {consentError && (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-950 dark:text-red-400">
+          {consentError}
+        </p>
+      )}
 
       {children.length === 0 ? (
         <div className="text-center">

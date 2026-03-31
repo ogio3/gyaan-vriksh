@@ -17,6 +17,7 @@ import { NextResponse } from 'next/server';
 import { anthropic } from '@ai-sdk/anthropic';
 import { streamObject } from 'ai';
 import { z } from 'zod';
+import { filterOutput } from '@/lib/safety/output-filter';
 import { headers } from 'next/headers';
 import { rateLimit } from '@/lib/rate-limit';
 import { buildSystemPrompt } from '@/lib/safety/system-prompts';
@@ -89,6 +90,11 @@ export async function POST(request: Request) {
             for (let i = lastCount; i < branches.length; i++) {
               const b = branches[i];
               if (b && b.branchType && b.label) {
+                const safetyCheck = await filterOutput(
+                  `${b.label} ${b.summary ?? ''}`,
+                  process.env.PERSPECTIVE_API_KEY ?? '',
+                );
+                if (!safetyCheck.allowed) continue;
                 controller.enqueue(
                   encoder.encode(JSON.stringify(b) + '\n'),
                 );
