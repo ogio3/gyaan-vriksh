@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   });
 
   const result = streamObject({
-    model: anthropic('claude-4-6-sonnet-20260217'),
+    model: anthropic('claude-sonnet-4-6-20260217'),
     schema: branchSchema,
     system: systemPrompt,
     prompt: `The student is exploring the branch "${branchLabel}" at depth level ${currentDepth}. Generate 3-5 sub-branches that go deeper into this specific topic.`,
